@@ -1,3 +1,4 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -226,3 +227,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
+
+import { Redirect } from "expo-router";
+
+export default function Index() {
+  return <Redirect href="/customer/profile" />;
+} (Criaçao da tela MEU PERFIL)
