@@ -7,6 +7,7 @@
     <div class="dashboard-page">
 
         <div class="dashboard-header">
+
             <div>
                 <h1>Dashboard Admin</h1>
                 <p>Minha Saúde Feminina</p>
@@ -19,11 +20,13 @@
                     Sair
                 </button>
             </form>
+
         </div>
 
         <div class="dashboard-content">
 
             <div class="dashboard-actions">
+
                 <div class="search-box">
                     <input type="text" placeholder="Buscar conteúdos...">
                 </div>
@@ -31,11 +34,13 @@
                 <a href="{{ url('/novo-conteudo') }}" class="btn-new">
                     + Novo Conteúdo
                 </a>
+
             </div>
 
             <div class="content-card">
 
                 <table class="desktop-table">
+
                     <thead>
                         <tr>
                             <th>Título</th>
@@ -48,31 +53,158 @@
 
                     <tbody>
 
-                        <tr>
-                            <td>Entendendo o Ciclo Menstrual</td>
+                        @forelse ($contents as $content)
 
-                            <td>
-                                <span class="tag">ciclo</span>
-                                <span class="tag">saúde</span>
-                            </td>
+                            <tr>
 
-                            <td>5 min</td>
+                                <td>
+                                    {{ $content->title }}
+                                </td>
 
-                            <td>14/03/2024</td>
+                                <td>
 
-                            <td class="actions">
+                                    @foreach (explode(',', $content->tags) as $tag)
 
-                                <button class="edit">
-                                    <img src="{{ asset('images/editar.png') }}" alt="Editar">
-                                </button>
+                                        <span class="tag">
+                                            {{ trim($tag) }}
+                                        </span>
 
-                                <button class="delete">
-                                    <img src="{{ asset('images/lixeira.png') }}" alt="Excluir">
-                                </button>
-                            </td>
-                        </tr>
+                                    @endforeach
+
+                                </td>
+
+                                <td>
+                                    {{ $content->reading_time }} min
+                                </td>
+
+                                <td>
+                                    {{ $content->created_at->format('d/m/Y') }}
+                                </td>
+
+                                <td class="actions">
+
+                                    <button class="edit">
+                                        <img src="{{ asset('images/editar.png') }}" alt="Editar">
+                                    </button>
+
+                                    <form action="{{ route('contents.destroy', $content->id) }}"
+                                        method="POST"
+                                        onsubmit="return confirm('Deseja excluir este conteúdo?')">
+
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button type="submit" class="delete">
+
+                                            <img src="{{ asset('images/lixeira.png') }}"
+                                                alt="Excluir">
+
+                                        </button>
+
+                                    </form>
+
+                                </td>
+
+                            </tr>
+
+                        @empty
+
+                            <tr>
+
+                                <td colspan="5" style="text-align: center;">
+                                    Nenhum conteúdo encontrado.
+                                </td>
+
+                            </tr>
+
+                        @endforelse
+
+                    </tbody>
+
+                </table>
+
+                <div class="mobile-list">
+
+                    @forelse ($contents as $content)
+
+                        <div class="mobile-card">
+
+                            <div class="mobile-card-header">
+
+                                <h3>
+                                    {{ $content->title }}
+                                </h3>
+
+                                <div class="actions">
+
+                                    <button class="edit">
+                                        <img src="{{ asset('images/editar.png') }}" alt="Editar">
+                                    </button>
+
+                                    <form action="{{ route('contents.destroy', $content->id) }}"
+                                        method="POST"
+                                        onsubmit="return confirm('Deseja excluir este conteúdo?')">
+
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button type="submit" class="delete">
+
+                                            <img src="{{ asset('images/lixeira.png') }}"
+                                                alt="Excluir">
+
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            </div>
+
+                            <div class="mobile-tags">
+
+                                @foreach (explode(',', $content->tags) as $tag)
+
+                                    <span class="tag">
+                                        {{ trim($tag) }}
+                                    </span>
+
+                                @endforeach
+
+                            </div>
+
+                            <div class="mobile-info">
+
+                                <span>
+                                    {{ $content->reading_time }} min
+                                </span>
+
+                                <span>
+                                    {{ $content->created_at->format('d/m/Y') }}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    @empty
+
+                        <div class="mobile-card">
+
+                            <h3>
+                                Nenhum conteúdo encontrado.
+                            </h3>
+
+                        </div>
+
+                    @endforelse
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
+
 @endsection

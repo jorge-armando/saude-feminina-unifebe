@@ -389,7 +389,10 @@ body {
 .mobile-list {
     display: none;
 }
-
+.actions form {
+    margin: 0;
+    padding: 0;
+}
 .actions button {
     width: 34px;
     height: 34px;

@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ContentController;
+
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -23,13 +25,16 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/painel', function () {
-        return view('dashboard');
-    })->name('painel');
+    Route::get('/painel', [ContentController::class, 'index'])
+    ->name('painel');
 
     Route::get('/novo-conteudo', function () {
         return view('contents.create');
     });
+
+Route::delete('/contents/{content}', [ContentController::class, 'destroy'])
+    ->name('contents.destroy');
+
 
     Route::post('/sair', [AuthController::class, 'sair'])
         ->name('sair');
