@@ -27,7 +27,7 @@ export default function WelcomePage() {
     await AsyncStorage.setItem('userName', name.trim());
     await AsyncStorage.setItem('hasCompletedWelcome', 'true');
 
-    router.replace('/');
+    router.replace('/home');
   }
 
   return (
