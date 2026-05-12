@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard Admin')
+@section('title', 'Painel Admin')
 
 @section('content')
 
@@ -9,7 +9,7 @@
         <div class="dashboard-header">
 
             <div>
-                <h1>Dashboard Admin</h1>
+                <h1>Painel Admin</h1>
                 <p>Minha Saúde Feminina</p>
             </div>
 
@@ -27,9 +27,15 @@
 
             <div class="dashboard-actions">
 
-                <div class="search-box">
-                    <input type="text" placeholder="Buscar conteúdos...">
-                </div>
+                <form method="GET" action="{{ route('painel') }}" class="search-form">
+                    <div class="search-box">
+                        <input type="text" name="search" placeholder="Buscar conteúdos..." value="{{ request('search') }}">
+                    </div>
+
+                    <button type="submit" class="btn-search">
+                        Buscar
+                    </button>
+                </form>
 
                 <a href="{{ url('/novo-conteudo') }}" class="btn-new">
                     + Novo Conteúdo
@@ -87,8 +93,7 @@
                                         <img src="{{ asset('images/editar.png') }}" alt="Editar">
                                     </button>
 
-                                    <form action="{{ route('contents.destroy', $content->id) }}"
-                                        method="POST"
+                                    <form action="{{ route('contents.destroy', $content->id) }}" method="POST"
                                         onsubmit="return confirm('Deseja excluir este conteúdo?')">
 
                                         @csrf
@@ -96,8 +101,7 @@
 
                                         <button type="submit" class="delete">
 
-                                            <img src="{{ asset('images/lixeira.png') }}"
-                                                alt="Excluir">
+                                            <img src="{{ asset('images/lixeira.png') }}" alt="Excluir">
 
                                         </button>
 
@@ -141,8 +145,7 @@
                                         <img src="{{ asset('images/editar.png') }}" alt="Editar">
                                     </button>
 
-                                    <form action="{{ route('contents.destroy', $content->id) }}"
-                                        method="POST"
+                                    <form action="{{ route('contents.destroy', $content->id) }}" method="POST"
                                         onsubmit="return confirm('Deseja excluir este conteúdo?')">
 
                                         @csrf
@@ -150,8 +153,7 @@
 
                                         <button type="submit" class="delete">
 
-                                            <img src="{{ asset('images/lixeira.png') }}"
-                                                alt="Excluir">
+                                            <img src="{{ asset('images/lixeira.png') }}" alt="Excluir">
 
                                         </button>
 

@@ -8,7 +8,15 @@ class ContentController extends Controller
 {
     public function index()
     {
-        $contents = Content::latest()->get();
+        $search = request('search');
+
+        $contents = Content::when($search, function ($query, $search) {
+            return $query->where('title', 'like', "%{$search}%")
+                ->orWhere('tags', 'like', "%{$search}%")
+                ->orWhere('content', 'like', "%{$search}%");
+        })
+            ->latest()
+            ->get();
 
         return view('dashboard', compact('contents'));
     }
