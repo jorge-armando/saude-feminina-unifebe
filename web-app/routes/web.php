@@ -3,17 +3,39 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 
-Route::get('/login', [AuthController::class, 'login'])->name('login');
-Route::post('/login', [AuthController::class, 'autenticar'])->name('login.autenticar');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect('/painel');
+    }
 
-Route::get('/painel', function () {
-    return view('dashboard');
-})->middleware('auth');
+    return redirect('/login');
+});
 
-Route::get('/novo-conteudo', function () {
-    return view('contents.create');
-})->middleware('auth');
+Route::middleware('guest')->group(function () {
 
-Route::post('/sair', [AuthController::class, 'sair'])->name('sair');
+    Route::get('/login', [AuthController::class, 'login'])
+        ->name('login');
 
-Route::redirect('/', '/login');
+    Route::post('/login', [AuthController::class, 'autenticar'])
+        ->name('login.autenticar');
+
+});
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/painel', function () {
+        return view('dashboard');
+    })->name('painel');
+
+    Route::get('/novo-conteudo', function () {
+        return view('contents.create');
+    });
+
+    Route::post('/sair', [AuthController::class, 'sair'])
+        ->name('sair');
+
+});
+
+Route::fallback(function () {
+    return redirect('/');
+});
