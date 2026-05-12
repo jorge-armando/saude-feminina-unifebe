@@ -162,7 +162,10 @@ export default function HomePage() {
               <Text style={styles.userName}>{userName}</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications')}
+          >
             <Ionicons name="notifications" size={24} color="#374151" />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
@@ -316,36 +319,36 @@ const styles = StyleSheet.create({
   },
 
   scroll: {
-    paddingTop: 60,
+    paddingTop: 58,
     paddingBottom: 120,
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
   },
 
   blobTop: {
     position: 'absolute',
-    top: -100,
-    left: -100,
-    width: 260,
-    height: 260,
-    borderRadius: 260,
-    backgroundColor: 'rgba(236,72,153,0.15)',
+    top: -120,
+    left: -120,
+    width: 280,
+    height: 280,
+    borderRadius: 999,
+    backgroundColor: 'rgba(236,72,153,0.10)',
   },
 
   blobBottom: {
     position: 'absolute',
-    bottom: -100,
-    right: -100,
-    width: 260,
-    height: 260,
-    borderRadius: 260,
-    backgroundColor: 'rgba(244,63,94,0.18)',
+    bottom: -140,
+    right: -140,
+    width: 300,
+    height: 300,
+    borderRadius: 999,
+    backgroundColor: 'rgba(168,85,247,0.12)',
   },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 30,
   },
 
   headerLeft: {
@@ -356,14 +359,25 @@ const styles = StyleSheet.create({
 
   avatarContainer: {
     marginRight: 14,
+    position: 'relative',
   },
 
   avatar: {
-    width: 64,
-    height: 64,
+    width: 66,
+    height: 66,
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
+    elevation: 8,
   },
 
   avatarEmoji: {
@@ -372,16 +386,22 @@ const styles = StyleSheet.create({
 
   flowerBadge: {
     position: 'absolute',
-    bottom: -6,
-    right: -6,
-    width: 28,
-    height: 28,
+    bottom: -2,
+    right: -2,
+
+    width: 24,
+    height: 24,
     borderRadius: 999,
-    backgroundColor: '#fef3c7',
+
+    backgroundColor: '#fff0f6',
+
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#fde68a',
+
+    borderWidth: 2,
+    borderColor: '#fff',
+
+    zIndex: 10,
   },
 
   greeting: {
@@ -391,7 +411,7 @@ const styles = StyleSheet.create({
   },
 
   userName: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
     color: '#111827',
   },
@@ -399,21 +419,27 @@ const styles = StyleSheet.create({
   notificationButton: {
     width: 56,
     height: 56,
-    borderRadius: 22,
-    backgroundColor: '#fff',
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#f43f5e',
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 24,
+
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+
     elevation: 8,
   },
 
   notificationDot: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 13,
+    right: 13,
     width: 10,
     height: 10,
     borderRadius: 999,
@@ -423,24 +449,29 @@ const styles = StyleSheet.create({
   },
 
   cycleCard: {
-    borderRadius: 32,
+    borderRadius: 34,
     padding: 24,
-    marginBottom: 28,
-    shadowColor: '#f43f5e',
+    marginBottom: 30,
+
+    shadowColor: '#ec4899',
     shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 16 },
     shadowRadius: 28,
+    shadowOffset: {
+      width: 0,
+      height: 14,
+    },
+
     elevation: 10,
   },
 
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 22,
   },
 
   cycleBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
@@ -448,26 +479,24 @@ const styles = StyleSheet.create({
 
   cycleBadgeText: {
     color: '#fff',
-    fontWeight: '700',
     fontSize: 12,
+    fontWeight: '700',
   },
 
   dayBadge: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
   },
 
   dayBadgeText: {
-    color: '#b91c1c',
+    color: '#be123c',
     fontWeight: '800',
   },
 
   cycleTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 22,
   },
 
   cycleLeft: {
@@ -476,47 +505,45 @@ const styles = StyleSheet.create({
   },
 
   cycleIconBox: {
-    width: 64,
-    height: 64,
+    width: 68,
+    height: 68,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+
     justifyContent: 'center',
     alignItems: 'center',
+
     marginRight: 16,
-    shadowColor: '#ffffff',
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 18,
   },
 
   cycleEmoji: {
-    fontSize: 32,
+    fontSize: 34,
   },
 
   cycleLabel: {
-    color: '#f3f4f6',
+    color: '#fdf4ff',
     marginBottom: 6,
     fontWeight: '600',
   },
 
   cycleTitle: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
   },
 
   messageBox: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 26,
     padding: 18,
     marginBottom: 20,
   },
 
   messageText: {
-    color: '#fafafa',
+    color: '#fff',
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
   progressHeader: {
@@ -526,32 +553,33 @@ const styles = StyleSheet.create({
   },
 
   progressLabel: {
-    color: '#f9fafb',
+    color: '#fff',
     fontWeight: '600',
   },
 
   progressValue: {
-    color: '#f9fafb',
+    color: '#fff',
     fontWeight: '800',
   },
 
   progressBar: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
     overflow: 'hidden',
   },
 
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
   },
 
   nextPeriod: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 24,
     padding: 16,
+
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -563,17 +591,15 @@ const styles = StyleSheet.create({
   },
 
   droplet: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 16,
     backgroundColor: '#fff',
+
     justifyContent: 'center',
     alignItems: 'center',
+
     marginRight: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
   },
 
   nextPeriodText: {
@@ -595,69 +621,80 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#111827',
   },
 
   seeAllButton: {
+    backgroundColor: '#ffe4e6',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(248,113,113,0.12)',
   },
 
   seeAllText: {
-    color: '#be123c',
-    fontWeight: '800',
+    color: '#e11d48',
+    fontWeight: '700',
   },
 
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: 30,
   },
 
   actionCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 18,
-    marginRight: 12,
-    shadowColor: '#fb7185',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 10 },
+    marginRight: 14,
+
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 7,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
+    elevation: 5,
   },
 
   actionGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+
     justifyContent: 'center',
     alignItems: 'center',
+
     marginBottom: 16,
   },
 
   actionEmoji: {
-    fontSize: 30,
+    fontSize: 32,
   },
 
   actionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
     color: '#111827',
   },
 
   dailyCard: {
     borderRadius: 32,
-    padding: 26,
-    marginBottom: 28,
-    shadowColor: '#f59e0b',
+    padding: 28,
+    marginBottom: 30,
+
+    shadowColor: '#fb7185',
     shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 18 },
-    shadowRadius: 30,
+    shadowRadius: 24,
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+
     elevation: 8,
   },
 
@@ -665,27 +702,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: '800',
-    marginBottom: 16,
+    marginBottom: 14,
   },
 
   dailyText: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 18,
     lineHeight: 30,
   },
 
   reminderCard: {
     backgroundColor: '#fff',
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 18,
     marginBottom: 16,
+
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#f43f5e',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 20,
+
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
     elevation: 5,
   },
 
@@ -696,22 +739,24 @@ const styles = StyleSheet.create({
   },
 
   reminderEmojiBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: '#ede9fe',
+    width: 66,
+    height: 66,
+    borderRadius: 24,
+    backgroundColor: '#f3e8ff',
+
     justifyContent: 'center',
     alignItems: 'center',
+
     marginRight: 16,
   },
 
   reminderEmoji: {
-    fontSize: 30,
+    fontSize: 32,
   },
 
   reminderType: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#9ca3af',
     fontWeight: '700',
     marginBottom: 4,
   },
@@ -729,14 +774,19 @@ const styles = StyleSheet.create({
 
   contentCard: {
     backgroundColor: '#fff',
-    borderRadius: 28,
+    borderRadius: 30,
     overflow: 'hidden',
     marginBottom: 18,
-    shadowColor: '#fb7185',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 24,
-    elevation: 6,
+
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+
+    elevation: 5,
   },
 
   contentRow: {
@@ -746,13 +796,16 @@ const styles = StyleSheet.create({
 
   contentEmojiBox: {
     width: width * 0.22,
-    height: 120,
+    minHeight: 120,
+
     justifyContent: 'center',
     alignItems: 'center',
+
+    alignSelf: 'stretch',
   },
 
   contentEmoji: {
-    fontSize: 42,
+    fontSize: 40,
   },
 
   contentInfo: {
@@ -761,7 +814,7 @@ const styles = StyleSheet.create({
   },
 
   contentBadge: {
-    backgroundColor: '#fbe7ef',
+    backgroundColor: '#ffe4e6',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -770,7 +823,7 @@ const styles = StyleSheet.create({
   },
 
   contentBadgeText: {
-    color: '#be123c',
+    color: '#e11d48',
     fontWeight: '800',
     fontSize: 12,
   },
@@ -787,19 +840,19 @@ const styles = StyleSheet.create({
   },
 
   exploreButton: {
-    borderWidth: 1.5,
-    borderColor: '#fbcfe8',
-    borderStyle: 'dashed',
-    borderRadius: 28,
+    backgroundColor: '#fff',
+    borderRadius: 30,
     paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 30,
-    backgroundColor: 'rgba(251,207,232,0.45)',
+
+    borderWidth: 1.5,
+    borderColor: '#fbcfe8',
   },
 
   exploreText: {
-    color: '#9d174d',
+    color: '#be185d',
     fontSize: 16,
     fontWeight: '800',
   },

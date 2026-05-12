@@ -227,9 +227,3 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 });
-
-import { Redirect } from "expo-router";
-
-export default function Index() {
-  return <Redirect href="/customer/profile" />;
-} (Criaçao da tela MEU PERFIL)

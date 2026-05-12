@@ -1,11 +1,26 @@
 import { useState } from 'react';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Platform,
+} from 'react-native';
 import { Plus, X, Calendar, Clock, Trash2, Edit2, Check } from 'lucide-react-native';
 
 interface Reminder {
   id: string;
   title: string;
-  date: string;
-  time: string;
+  day: string;
+  month: string;
+  year: string;
+  hour: string;
+  minute: string;
   emoji: string;
   notes?: string;
 }
@@ -15,73 +30,136 @@ export default function RemindersPage() {
     {
       id: '1',
       title: 'Papanicolau',
-      date: '2026-03-22',
-      time: '14:00',
+      day: '22',
+      month: '03',
+      year: '2026',
+      hour: '14',
+      minute: '00',
       emoji: '🏥',
-      notes: 'Clínica Dr. Silva'
+      notes: 'Clínica Dr. Silva',
     },
     {
       id: '2',
       title: 'Ginecologista - Dra. Ana',
-      date: '2026-04-05',
-      time: '09:30',
+      day: '05',
+      month: '04',
+      year: '2026',
+      hour: '09',
+      minute: '30',
       emoji: '👩‍⚕️',
-      notes: 'Consulta de rotina'
-    }
+      notes: 'Consulta de rotina',
+    },
   ]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    date: '',
-    time: '',
+    day: '',
+    month: '',
+    year: '',
+    hour: '00',
+    minute: '00',
     emoji: '📅',
-    notes: ''
+    notes: '',
   });
 
   const emojiOptions = [
-    '🏥', '👩‍⚕️', '💊', '📅', '🩺', '💉', '🧪', '❤️', 
-    '🌸', '💕', '🎀', '💝', '🩷', '🌺', '🧘‍♀️', '💆‍♀️',
-    '🍎', '🥗', '💪', '🌙', '☀️', '⭐', '✨', '🌈'
+    '🏥',
+    '👩‍⚕️',
+    '💊',
+    '📅',
+    '🩺',
+    '💉',
+    '🧪',
+    '❤️',
+    '🌸',
+    '💕',
+    '🎀',
+    '💝',
+    '🩷',
+    '🌺',
+    '🧘‍♀️',
+    '💆‍♀️',
+    '🍎',
+    '🥗',
+    '💪',
+    '🌙',
+    '☀️',
+    '⭐',
+    '✨',
+    '🌈',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = () => {
+    const day = Number(formData.day);
+    const month = Number(formData.month);
+    const year = Number(formData.year);
+    const hour = Number(formData.hour);
+    const minute = Number(formData.minute);
+
+    if (
+      !formData.title.trim() ||
+      !formData.day.trim() ||
+      !formData.month.trim() ||
+      !formData.year.trim() ||
+      !formData.hour.trim() ||
+      !formData.minute.trim() ||
+      day < 1 ||
+      day > 31 ||
+      month < 1 ||
+      month > 12 ||
+      year < 1900 ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return;
+    }
+
+    const normalizedFormData = {
+      ...formData,
+      day: formData.day.padStart(2, '0'),
+      month: formData.month.padStart(2, '0'),
+      hour: formData.hour.padStart(2, '0'),
+      minute: formData.minute.padStart(2, '0'),
+    };
+
     if (editingId) {
-      // Edit existing reminder
-      setReminders(reminders.map(r => 
-        r.id === editingId 
-          ? { ...formData, id: editingId }
-          : r
-      ));
+      setReminders(
+        reminders.map((r) =>
+          r.id === editingId ? { ...normalizedFormData, id: editingId } : r
+        )
+      );
     } else {
-      // Add new reminder
       const newReminder: Reminder = {
-        ...formData,
-        id: Date.now().toString()
+        ...normalizedFormData,
+        id: Date.now().toString(),
       };
       setReminders([...reminders, newReminder]);
     }
-    
+
     closeModal();
   };
 
   const handleEdit = (reminder: Reminder) => {
     setFormData({
       title: reminder.title,
-      date: reminder.date,
-      time: reminder.time,
+      day: reminder.day,
+      month: reminder.month,
+      year: reminder.year,
+      hour: reminder.hour,
+      minute: reminder.minute,
       emoji: reminder.emoji,
-      notes: reminder.notes || ''
+      notes: reminder.notes || '',
     });
     setEditingId(reminder.id);
     setShowModal(true);
   };
 
   const handleDelete = (id: string) => {
-    setReminders(reminders.filter(r => r.id !== id));
+    setReminders(reminders.filter((r) => r.id !== id));
   };
 
   const closeModal = () => {
@@ -89,255 +167,498 @@ export default function RemindersPage() {
     setEditingId(null);
     setFormData({
       title: '',
-      date: '',
-      time: '',
+      day: '',
+      month: '',
+      year: '',
+      hour: '00',
+      minute: '00',
       emoji: '📅',
-      notes: ''
+      notes: '',
     });
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (reminder: Reminder) => {
+    const date = new Date(
+      Number(reminder.year),
+      Number(reminder.month) - 1,
+      Number(reminder.day)
+    );
     return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
   };
 
-  const sortedReminders = [...reminders].sort((a, b) => 
-    new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime()
-  );
+  const formatTime = (hour: string, minute: string) =>
+    `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+
+  const sortedReminders = [...reminders].sort((a, b) => {
+    const aDate = new Date(
+      Number(a.year),
+      Number(a.month) - 1,
+      Number(a.day),
+      Number(a.hour),
+      Number(a.minute)
+    ).getTime();
+
+    const bDate = new Date(
+      Number(b.year),
+      Number(b.month) - 1,
+      Number(b.day),
+      Number(b.hour),
+      Number(b.minute)
+    ).getTime();
+
+    return aDate - bDate;
+  });
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 pb-24">
-      {/* Animated decorative elements */}
-      <div 
-        className="pointer-events-none fixed left-0 top-0 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-pink-300/30 to-purple-300/30 blur-3xl"
-      />
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Meus Lembretes</Text>
+          <Text style={styles.subtitle}>Gerencie seus compromissos de saúde</Text>
+        </View>
 
-      {/* Header */}
-      <header 
-        className="relative px-6 pb-6 pt-8"
-      >
-        <div className="mx-auto max-w-md">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold text-gray-900">
-                <span>Meus Lembretes</span>
-                <span className="text-2xl">📌</span>
-              </h1>
-              <p className="text-sm text-gray-600">Gerencie seus compromissos de saúde</p>
-            </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-xl shadow-pink-300/50"
-            >
-              <Plus className="h-6 w-6 text-white" />
-            </button>
-          </div>
-        </div>
-      </header>
+        <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
+          <Plus color="#fff" size={22} />
+        </TouchableOpacity>
+      </View>
 
-      {/* Reminders List */}
-      <main className="relative mx-auto max-w-md px-6">
-        {sortedReminders.length === 0 ? (
-          <div
-            className="mt-20 text-center"
-          >
-            <div className="mb-4 text-6xl">📭</div>
-            <p className="mb-2 font-bold text-gray-900">Nenhum lembrete ainda</p>
-            <p className="text-sm text-gray-600">Adicione seu primeiro lembrete clicando no botão +</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sortedReminders.map((reminder, index) => (
-              <div
-                key={reminder.id}
-                className="group overflow-hidden rounded-3xl bg-white p-5 shadow-xl shadow-pink-200/40"
-              >
-                  <div className="flex items-start gap-4">
-                    <div 
-                      className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-purple-500 shadow-xl shadow-purple-300/50"
-                    >
-                      <span className="text-3xl">{reminder.emoji}</span>
-                    </div>
-                    
-                    <div className="flex-1">
-                      <span className="mb-2 rounded-full bg-gradient-to-r from-rose-50 to-pink-50 px-3 py-1 text-xs font-bold text-rose-700">
-                        Lembrete
-                      </span>
-                      <h3 className="mb-2 font-bold text-gray-900">{reminder.title}</h3>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {formatDate(reminder.date)}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          {reminder.time}
-                        </p>
-                        {reminder.notes && (
-                          <p className="font-['Patrick_Hand'] text-base text-gray-700">{reminder.notes}</p>
-                        )}
-                      </div>
-                    </div>
+      {sortedReminders.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>📭</Text>
+          <Text style={styles.emptyTitle}>Nenhum lembrete ainda</Text>
+          <Text style={styles.emptySubtitle}>
+            Adicione seu primeiro lembrete clicando no botão +
+          </Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.listContainer}>
+          {sortedReminders.map((reminder) => (
+            <View key={reminder.id} style={styles.card}>
+              <View style={styles.cardLeft}>
+                <View style={styles.emojiCircle}>
+                  <Text style={styles.emojiText}>{reminder.emoji}</Text>
+                </View>
+              </View>
 
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => handleEdit(reminder)}
-                        className="rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 p-3"
-                      >
-                        <Edit2 className="h-5 w-5 text-blue-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(reminder.id)}
-                        className="rounded-2xl bg-gradient-to-br from-red-50 to-rose-50 p-3"
-                      >
-                        <Trash2 className="h-5 w-5 text-red-600" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              <View style={styles.cardBody}>
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>Lembrete</Text>
+                </View>
+                <Text style={styles.cardTitle}>{reminder.title}</Text>
+                <View style={styles.cardDetails}>
+                  <View style={styles.detailRow}>
+                    <Calendar color="#6b7280" size={14} />
+                    <Text style={styles.detailText}>{formatDate(reminder)}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Clock color="#6b7280" size={14} />
+                    <Text style={styles.detailText}>{formatTime(reminder.hour, reminder.minute)}</Text>
+                  </View>
+                  {reminder.notes ? (
+                    <Text style={styles.notesText}>{reminder.notes}</Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.cardActions}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(reminder)}>
+                  <Edit2 color="#2563eb" size={18} />
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(reminder.id)}>
+                  <Trash2 color="#dc2626" size={18} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      <Modal visible={showModal} animationType="fade" transparent>
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <View style={styles.modalBackground} />
+        </Pressable>
+
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{editingId ? 'Editar Lembrete' : 'Novo Lembrete'}</Text>
+            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+              <X color="#374151" size={20} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+            <Text style={styles.label}>Ícone</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiRow}>
+              {emojiOptions.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={[
+                    styles.emojiButton,
+                    formData.emoji === emoji && styles.emojiButtonActive,
+                  ]}
+                  onPress={() => setFormData({ ...formData, emoji })}
+                >
+                  <Text style={styles.emojiButtonText}>{emoji}</Text>
+                </TouchableOpacity>
               ))}
-          </div>
-        )}
-      </main>
+            </ScrollView>
 
-      {/* Modal */}
-      {showModal && (
-          <>
-            {/* Backdrop */}
-            <div
-              onClick={closeModal}
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+            <Text style={styles.label}>Título</Text>
+            <TextInput
+              value={formData.title}
+              onChangeText={(value) => setFormData({ ...formData, title: value })}
+              placeholder="Ex: Consulta com ginecologista"
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
             />
 
-            {/* Modal Content */}
-            <div
-              className="fixed left-1/2 top-1/2 z-[60] w-full max-w-md -translate-x-1/2 -translate-y-1/2 px-6"
-              style={{ maxHeight: 'calc(100vh - 120px)' }}
-            >
-              <div className="flex max-h-full flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
-                {/* Modal Header - Fixed */}
-                <div className="flex-shrink-0 border-b border-gray-100 px-6 pt-6 pb-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {editingId ? 'Editar Lembrete' : 'Novo Lembrete'}
-                    </h2>
-                    <button
-                      onClick={closeModal}
-                      className="rounded-full p-2 hover:bg-gray-100"
-                    >
-                      <X className="h-6 w-6 text-gray-600" />
-                    </button>
-                  </div>
-                </div>
+            <Text style={styles.label}>Data</Text>
+            <View style={styles.dateRow}>
+              <TextInput
+                value={formData.day}
+                onChangeText={(value) => setFormData({ ...formData, day: value.replace(/[^0-9]/g, '') })}
+                placeholder="DD"
+                placeholderTextColor="#9ca3af"
+                style={[styles.input, styles.smallInput]}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <TextInput
+                value={formData.month}
+                onChangeText={(value) => setFormData({ ...formData, month: value.replace(/[^0-9]/g, '') })}
+                placeholder="MM"
+                placeholderTextColor="#9ca3af"
+                style={[styles.input, styles.smallInput]}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <TextInput
+                value={formData.year}
+                onChangeText={(value) => setFormData({ ...formData, year: value.replace(/[^0-9]/g, '') })}
+                placeholder="AAAA"
+                placeholderTextColor="#9ca3af"
+                style={[styles.input, styles.mediumInput]}
+                keyboardType="numeric"
+                maxLength={4}
+              />
+            </View>
 
-                {/* Form - Scrollable */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
-                  <form onSubmit={handleSubmit} className="space-y-4" id="reminder-form">
-                    {/* Emoji Picker */}
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Ícone
-                      </label>
-                      <div className="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 pb-2">
-                        {emojiOptions.map(emoji => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, emoji })}
-                            className={`flex-shrink-0 rounded-2xl p-3 text-2xl transition-all ${
-                              formData.emoji === emoji
-                                ? 'bg-gradient-to-br from-rose-500 to-pink-500 shadow-lg'
-                                : 'bg-gray-100 hover:bg-gray-200'
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+            <Text style={styles.label}>Horário</Text>
+            <View style={styles.dateRow}>
+              <TextInput
+                value={formData.hour}
+                onChangeText={(value) => setFormData({ ...formData, hour: value.replace(/[^0-9]/g, '') })}
+                placeholder="HH"
+                placeholderTextColor="#9ca3af"
+                style={[styles.input, styles.smallInput]}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <TextInput
+                value={formData.minute}
+                onChangeText={(value) => setFormData({ ...formData, minute: value.replace(/[^0-9]/g, '') })}
+                placeholder="MM"
+                placeholderTextColor="#9ca3af"
+                style={[styles.input, styles.smallInput]}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
 
-                    {/* Title */}
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Título
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        placeholder="Ex: Consulta com ginecologista"
-                        className="w-full rounded-2xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-pink-300"
-                      />
-                    </div>
+            <Text style={styles.label}>Observações (opcional)</Text>
+            <TextInput
+              value={formData.notes}
+              onChangeText={(value) => setFormData({ ...formData, notes: value })}
+              placeholder="Ex: Levar exames anteriores"
+              placeholderTextColor="#9ca3af"
+              style={[styles.input, styles.textArea]}
+              multiline
+            />
 
-                    {/* Date */}
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Data
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        className="w-full rounded-2xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-pink-300"
-                      />
-                    </div>
-
-                    {/* Time */}
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Horário
-                      </label>
-                      <input
-                        type="time"
-                        required
-                        value={formData.time}
-                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                        className="w-full rounded-2xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-pink-300"
-                      />
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Observações (opcional)
-                      </label>
-                      <textarea
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder="Ex: Levar exames anteriores"
-                        rows={3}
-                        className="w-full rounded-2xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-pink-300"
-                      />
-                    </div>
-
-                    {/* Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="flex-1 rounded-2xl bg-gray-100 py-3 font-bold text-gray-700 hover:bg-gray-200"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 font-bold text-white shadow-lg shadow-pink-300/50 hover:shadow-xl"
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <Check className="h-5 w-5" />
-                          {editingId ? 'Salvar' : 'Adicionar'}
-                        </span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={closeModal}>
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSubmit}>
+                <View style={styles.saveButtonContent}>
+                  <Check color="#fff" size={16} />
+                  <Text style={styles.saveButtonText}>{editingId ? 'Salvar' : 'Adicionar'}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#fff5f8',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 24 : 20,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  subtitle: {
+    marginTop: 4,
+    color: '#6b7280',
+    fontSize: 14,
+  },
+  addButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 24,
+    backgroundColor: '#ec4899',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyEmoji: {
+    fontSize: 56,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#111827',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  listContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    shadowColor: '#f9a8d4',
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  cardLeft: {
+    marginRight: 12,
+  },
+  emojiCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: '#d8b4fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiText: {
+    fontSize: 26,
+  },
+  cardBody: {
+    flex: 1,
+  },
+  tag: {
+    backgroundColor: '#fce7f3',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  tagText: {
+    color: '#be185d',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  cardDetails: {
+    gap: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  detailText: {
+    color: '#6b7280',
+    fontSize: 13,
+  },
+  notesText: {
+    color: '#374151',
+    fontSize: 14,
+    marginTop: 8,
+  },
+  cardActions: {
+    marginLeft: 12,
+    gap: 12,
+  },
+  actionButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalBackground: {
+    flex: 1,
+  },
+  modalContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    top: '15%',
+    bottom: '10%',
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+  },
+  modalBodyContent: {
+    paddingBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  emojiRow: {
+    marginBottom: 16,
+  },
+  emojiButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  emojiButtonActive: {
+    backgroundColor: '#ec4899',
+  },
+  emojiButtonText: {
+    fontSize: 24,
+  },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#111827',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 16,
+  },
+  smallInput: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  mediumInput: {
+    flex: 1.5,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f3f4f6',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontWeight: '700',
+  },
+  saveButton: {
+    backgroundColor: '#ec4899',
+  },
+  saveButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+});
