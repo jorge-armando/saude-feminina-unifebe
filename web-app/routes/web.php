@@ -28,7 +28,7 @@ Route::middleware('auth')->group(function () {
     })->name('painel');
 
     Route::get('/novo-conteudo', function () {
-        return view('contents.create');
+        return view('create');
     });
 
     Route::post('/sair', [AuthController::class, 'sair'])

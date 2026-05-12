@@ -1,6 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+﻿import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Dimensions,
@@ -37,13 +38,15 @@ export default function HomePage() {
       title: 'Meu Ciclo',
       emoji: '🌸',
       colors: ['#fb7185', '#ec4899'],
+      link: '/calendar' as const,
     },
     {
       title: 'Conteúdos',
       emoji: '📚',
       colors: ['#a78bfa', '#8b5cf6'],
+      link: '/content' as const,
     },
-  ];
+  ] as const;
 
   const reminders = [
     {
@@ -54,7 +57,7 @@ export default function HomePage() {
     },
     {
       type: 'Consulta',
-      title: 'Ginecologista',
+      title: 'Ginecologista - Dra. Ana',
       date: '5 de Abril',
       emoji: '👩‍⚕️',
     },
@@ -74,6 +77,13 @@ export default function HomePage() {
       time: '5 min',
       emoji: '🥗',
       colors: ['#34d399', '#2dd4bf'],
+    },
+    {
+      title: 'Exercícios para TPM',
+      category: 'Bem-estar',
+      time: '4 min',
+      emoji: '🧘‍♀️',
+      colors: ['#fbbf24', '#fb923c'],
     },
   ];
 
@@ -123,7 +133,6 @@ export default function HomePage() {
     >
       <StatusBar barStyle="dark-content" />
 
-      {/* Blobs */}
       <View style={styles.blobTop} />
       <View style={styles.blobBottom} />
 
@@ -131,9 +140,12 @@ export default function HomePage() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* HEADER */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.headerLeft}
+            onPress={() => router.push('/profile')}
+          >
             <View style={styles.avatarContainer}>
               <LinearGradient
                 colors={['#fb7185', '#ec4899', '#a855f7']}
@@ -141,240 +153,158 @@ export default function HomePage() {
               >
                 <Text style={styles.avatarEmoji}>👋</Text>
               </LinearGradient>
-
               <View style={styles.flowerBadge}>
                 <Text>🌸</Text>
               </View>
             </View>
-
             <View>
-              <Text style={styles.greeting}>
-                Oi, que bom ver você! 💕
-              </Text>
-
-              <Text style={styles.userName}>
-                {userName}
-              </Text>
+              <Text style={styles.greeting}>Oi, que bom ver você! 💕</Text>
+              <Text style={styles.userName}>{userName}</Text>
             </View>
-          </View>
-
+          </TouchableOpacity>
           <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons
-              name="notifications"
-              size={24}
-              color="#374151"
-            />
-
+            <Ionicons name="notifications" size={24} color="#374151" />
             <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
 
-        {/* CARD CICLO */}
-        <LinearGradient
-          colors={cycleInfo.colors as any}
-          style={styles.cycleCard}
-        >
+        <LinearGradient colors={cycleInfo.colors as any} style={styles.cycleCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cycleBadge}>
+              <Text style={styles.cycleBadgeText}>Ciclo atual</Text>
+            </View>
+            <View style={styles.dayBadge}>
+              <Text style={styles.dayBadgeText}>Dia {currentDay}</Text>
+            </View>
+          </View>
+
           <View style={styles.cycleTop}>
             <View style={styles.cycleLeft}>
-              <Text style={styles.cycleEmoji}>
-                {cycleInfo.icon}
-              </Text>
-
-              <View>
-                <Text style={styles.cycleLabel}>
-                  Você está na
-                </Text>
-
-                <Text style={styles.cycleTitle}>
-                  {cycleInfo.phase}
-                </Text>
+              <View style={styles.cycleIconBox}>
+                <Text style={styles.cycleEmoji}>{cycleInfo.icon}</Text>
               </View>
-            </View>
-
-            <View style={styles.dayBadge}>
-              <Text style={styles.dayBadgeText}>
-                Dia {currentDay}
-              </Text>
+              <View>
+                <Text style={styles.cycleLabel}>Você está na</Text>
+                <Text style={styles.cycleTitle}>{cycleInfo.phase}</Text>
+              </View>
             </View>
           </View>
 
           <View style={styles.messageBox}>
-            <Text style={styles.messageText}>
-              {cycleInfo.message}
-            </Text>
-
+            <Text style={styles.messageText}>{cycleInfo.message}</Text>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressText}>
-                Progresso do ciclo
-              </Text>
-
-              <Text style={styles.progressText}>
-                {Math.round(cycleProgress)}%
-              </Text>
+              <Text style={styles.progressLabel}>Progresso do ciclo</Text>
+              <Text style={styles.progressValue}>{Math.round(cycleProgress)}%</Text>
             </View>
-
             <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${cycleProgress}%`,
-                  },
-                ]}
-              />
+              <View style={[styles.progressFill, { width: `${cycleProgress}%` }]} />
             </View>
           </View>
 
           <View style={styles.nextPeriod}>
             <View style={styles.nextPeriodLeft}>
               <View style={styles.droplet}>
-                <Ionicons
-                  name="water"
-                  size={18}
-                  color="#f43f5e"
-                />
+                <Ionicons name="water" size={18} color="#f43f5e" />
               </View>
-
-              <Text style={styles.nextPeriodText}>
-                Próxima menstruação
-              </Text>
+              <Text style={styles.nextPeriodText}>Próxima menstruação</Text>
             </View>
-
-            <Text style={styles.nextPeriodDays}>
-              {cycleLength - currentDay} dias
-            </Text>
+            <Text style={styles.nextPeriodDays}>{cycleLength - currentDay} dias</Text>
           </View>
         </LinearGradient>
 
-        {/* AÇÕES */}
-        <Text style={styles.sectionTitle}>
-          O que vamos fazer hoje? ✨
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>O que vamos fazer hoje?</Text>
+        </View>
 
-        <View style={styles.actions}>
+        <View style={styles.actionsRow}>
           {quickActions.map((item, index) => (
             <TouchableOpacity
               key={index}
-              activeOpacity={0.85}
-              style={styles.actionButton}
+              activeOpacity={0.88}
+              style={styles.actionCard}
+              onPress={() => router.push(item.link)}
             >
-              <LinearGradient
-                colors={item.colors as any}
-                style={styles.actionGradient}
-              >
-                <Text style={styles.actionEmoji}>
-                  {item.emoji}
-                </Text>
-
-                <Text style={styles.actionTitle}>
-                  {item.title}
-                </Text>
+              <LinearGradient colors={item.colors as any} style={styles.actionGradient}>
+                <Text style={styles.actionEmoji}>{item.emoji}</Text>
               </LinearGradient>
+              <Text style={styles.actionTitle}>{item.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* MENSAGEM */}
-        <LinearGradient
-          colors={['#f59e0b', '#fb7185', '#a855f7']}
-          style={styles.dailyCard}
-        >
-          <Text style={styles.dailyTitle}>
-            💝 Mensagem do Dia
-          </Text>
-
+        <LinearGradient colors={['#f59e0b', '#fb7185', '#a855f7']} style={styles.dailyCard}>
+          <Text style={styles.dailyTitle}>💝 Mensagem do Dia</Text>
           <Text style={styles.dailyText}>
-            "Cada fase do seu ciclo é uma oportunidade
-            de se conhecer melhor."
+            "Cada fase do seu ciclo é uma oportunidade de se conhecer melhor. Seja gentil com você mesma."
           </Text>
         </LinearGradient>
 
-        {/* LEMBRETES */}
-        <Text style={styles.sectionTitle}>
-          Seus Lembretes 📌
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Seus Lembretes</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.seeAllButton}
+            onPress={() => router.push('/reminders')}
+          >
+            <Text style={styles.seeAllText}>Ver todos →</Text>
+          </TouchableOpacity>
+        </View>
 
         {reminders.map((item, index) => (
           <TouchableOpacity
             key={index}
-            activeOpacity={0.85}
+            activeOpacity={0.86}
             style={styles.reminderCard}
+            onPress={() => router.push('/reminders')}
           >
             <View style={styles.reminderLeft}>
               <View style={styles.reminderEmojiBox}>
-                <Text style={styles.reminderEmoji}>
-                  {item.emoji}
-                </Text>
+                <Text style={styles.reminderEmoji}>{item.emoji}</Text>
               </View>
-
               <View>
-                <Text style={styles.reminderType}>
-                  {item.type}
-                </Text>
-
-                <Text style={styles.reminderTitle}>
-                  {item.title}
-                </Text>
-
-                <Text style={styles.reminderDate}>
-                  🕒 {item.date}
-                </Text>
+                <Text style={styles.reminderType}>{item.type}</Text>
+                <Text style={styles.reminderTitle}>{item.title}</Text>
+                <Text style={styles.reminderDate}>🕒 {item.date}</Text>
               </View>
             </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={22}
-              color="#f43f5e"
-            />
+            <Ionicons name="chevron-forward" size={22} color="#f43f5e" />
           </TouchableOpacity>
         ))}
 
-        {/* CONTEÚDOS */}
-        <Text style={styles.sectionTitle}>
-          Últimos conteúdos 💌
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Últimos conteúdos</Text>
+        </View>
 
         {contents.map((item, index) => (
           <TouchableOpacity
             key={index}
-            activeOpacity={0.85}
+            activeOpacity={0.86}
             style={styles.contentCard}
+            onPress={() => router.push('/content')}
           >
             <View style={styles.contentRow}>
-              <LinearGradient
-                colors={item.colors as any}
-                style={styles.contentEmojiBox}
-              >
-                <Text style={styles.contentEmoji}>
-                  {item.emoji}
-                </Text>
+              <LinearGradient colors={item.colors as any} style={styles.contentEmojiBox}>
+                <Text style={styles.contentEmoji}>{item.emoji}</Text>
               </LinearGradient>
-
               <View style={styles.contentInfo}>
                 <View style={styles.contentBadge}>
-                  <Text style={styles.contentBadgeText}>
-                    {item.category}
-                  </Text>
+                  <Text style={styles.contentBadgeText}>{item.category}</Text>
                 </View>
-
-                <Text style={styles.contentTitle}>
-                  {item.title}
-                </Text>
-
-                <Text style={styles.contentTime}>
-                  📖 {item.time} de leitura
-                </Text>
+                <Text style={styles.contentTitle}>{item.title}</Text>
+                <Text style={styles.contentTime}>📖 {item.time} de leitura</Text>
               </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={22}
-                color="#f43f5e"
-              />
+              <Ionicons name="chevron-forward" size={22} color="#f43f5e" />
             </View>
           </TouchableOpacity>
         ))}
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.exploreButton}
+          onPress={() => router.push('/content')}
+        >
+          <Text style={styles.exploreText}>Explorar mais conteúdos ✨</Text>
+        </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
   );
@@ -393,22 +323,22 @@ const styles = StyleSheet.create({
 
   blobTop: {
     position: 'absolute',
-    top: -120,
-    left: -120,
-    width: 300,
-    height: 300,
-    borderRadius: 999,
+    top: -100,
+    left: -100,
+    width: 260,
+    height: 260,
+    borderRadius: 260,
     backgroundColor: 'rgba(236,72,153,0.15)',
   },
 
   blobBottom: {
     position: 'absolute',
-    bottom: -120,
-    right: -120,
-    width: 300,
-    height: 300,
-    borderRadius: 999,
-    backgroundColor: 'rgba(168,85,247,0.15)',
+    bottom: -100,
+    right: -100,
+    width: 260,
+    height: 260,
+    borderRadius: 260,
+    backgroundColor: 'rgba(244,63,94,0.18)',
   },
 
   header: {
@@ -421,6 +351,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
 
   avatarContainer: {
@@ -430,7 +361,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: 22,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -441,55 +372,101 @@ const styles = StyleSheet.create({
 
   flowerBadge: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 24,
-    height: 24,
+    bottom: -6,
+    right: -6,
+    width: 28,
+    height: 28,
     borderRadius: 999,
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#fef3c7',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fde68a',
   },
 
   greeting: {
     fontSize: 14,
     color: '#6b7280',
+    marginBottom: 4,
   },
 
   userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#111827',
   },
 
   notificationButton: {
     width: 56,
     height: 56,
-    borderRadius: 20,
+    borderRadius: 22,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#f43f5e',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 24,
+    elevation: 8,
   },
 
   notificationDot: {
     position: 'absolute',
-    top: 14,
-    right: 14,
+    top: 12,
+    right: 12,
     width: 10,
     height: 10,
     borderRadius: 999,
     backgroundColor: '#f43f5e',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
 
   cycleCard: {
     borderRadius: 32,
     padding: 24,
     marginBottom: 28,
+    shadowColor: '#f43f5e',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 16 },
+    shadowRadius: 28,
+    elevation: 10,
+  },
+
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+
+  cycleBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  cycleBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+
+  dayBadge: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+
+  dayBadgeText: {
+    color: '#b91c1c',
+    fontWeight: '800',
   },
 
   cycleTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
 
@@ -498,75 +475,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  cycleEmoji: {
-    fontSize: 36,
+  cycleIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#ffffff',
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 18,
+  },
+
+  cycleEmoji: {
+    fontSize: 32,
   },
 
   cycleLabel: {
-    color: '#fff',
-    marginBottom: 4,
+    color: '#f3f4f6',
+    marginBottom: 6,
+    fontWeight: '600',
   },
 
   cycleTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
     color: '#fff',
-  },
-
-  dayBadge: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-
-  dayBadgeText: {
-    color: '#e11d48',
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
 
   messageBox: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 24,
     padding: 18,
     marginBottom: 20,
   },
 
   messageText: {
-    color: '#fff',
-    fontSize: 18,
-    lineHeight: 28,
+    color: '#fafafa',
+    fontSize: 16,
+    lineHeight: 24,
     marginBottom: 16,
-    fontStyle: 'italic',
   },
 
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
-  progressText: {
-    color: '#fff',
+  progressLabel: {
+    color: '#f9fafb',
     fontWeight: '600',
+  },
+
+  progressValue: {
+    color: '#f9fafb',
+    fontWeight: '800',
   },
 
   progressBar: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.35)',
     overflow: 'hidden',
   },
 
   progressFill: {
     height: '100%',
-    backgroundColor: '#fff',
     borderRadius: 999,
+    backgroundColor: '#ffffff',
   },
 
   nextPeriod: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
     borderRadius: 22,
     padding: 16,
     flexDirection: 'row',
@@ -580,79 +563,115 @@ const styles = StyleSheet.create({
   },
 
   droplet: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 16,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
   },
 
   nextPeriodText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   nextPeriodDays: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '900',
+    fontSize: 18,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
   },
 
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#111827',
-    marginBottom: 18,
   },
 
-  actions: {
+  seeAllButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(248,113,113,0.12)',
+  },
+
+  seeAllText: {
+    color: '#be123c',
+    fontWeight: '800',
+  },
+
+  actionsRow: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'space-between',
     marginBottom: 28,
   },
 
-  actionButton: {
+  actionCard: {
     flex: 1,
+    backgroundColor: '#fff',
     borderRadius: 28,
-    overflow: 'hidden',
+    padding: 18,
+    marginRight: 12,
+    shadowColor: '#fb7185',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 7,
   },
 
   actionGradient: {
-    paddingVertical: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
 
   actionEmoji: {
-    fontSize: 40,
-    marginBottom: 10,
+    fontSize: 30,
   },
 
   actionTitle: {
-    color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
   },
 
   dailyCard: {
     borderRadius: 32,
-    padding: 28,
+    padding: 26,
     marginBottom: 28,
+    shadowColor: '#f59e0b',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 18 },
+    shadowRadius: 30,
+    elevation: 8,
   },
 
   dailyTitle: {
     color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     marginBottom: 16,
   },
 
   dailyText: {
     color: '#fff',
-    fontSize: 24,
-    lineHeight: 36,
-    fontStyle: 'italic',
+    fontSize: 20,
+    lineHeight: 30,
   },
 
   reminderCard: {
@@ -663,11 +682,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#f43f5e',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 5,
   },
 
   reminderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
 
   reminderEmojiBox: {
@@ -687,13 +712,13 @@ const styles = StyleSheet.create({
   reminderType: {
     fontSize: 12,
     color: '#6b7280',
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 4,
   },
 
   reminderTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#111827',
     marginBottom: 4,
   },
@@ -707,6 +732,11 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     overflow: 'hidden',
     marginBottom: 18,
+    shadowColor: '#fb7185',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 24,
+    elevation: 6,
   },
 
   contentRow: {
@@ -715,7 +745,7 @@ const styles = StyleSheet.create({
   },
 
   contentEmojiBox: {
-    width: width * 0.24,
+    width: width * 0.22,
     height: 120,
     justifyContent: 'center',
     alignItems: 'center',
@@ -731,7 +761,7 @@ const styles = StyleSheet.create({
   },
 
   contentBadge: {
-    backgroundColor: '#ffe4e6',
+    backgroundColor: '#fbe7ef',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -740,19 +770,37 @@ const styles = StyleSheet.create({
   },
 
   contentBadgeText: {
-    color: '#e11d48',
-    fontWeight: 'bold',
+    color: '#be123c',
+    fontWeight: '800',
     fontSize: 12,
   },
 
   contentTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
   },
 
   contentTime: {
     color: '#6b7280',
+  },
+
+  exploreButton: {
+    borderWidth: 1.5,
+    borderColor: '#fbcfe8',
+    borderStyle: 'dashed',
+    borderRadius: 28,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 30,
+    backgroundColor: 'rgba(251,207,232,0.45)',
+  },
+
+  exploreText: {
+    color: '#9d174d',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
