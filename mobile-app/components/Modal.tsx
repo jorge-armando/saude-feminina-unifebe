@@ -1,224 +1,151 @@
-import React, { createContext, useContext, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect } from "react";
 import {
-  Modal as RNModal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ViewProps,
-  TextProps,
-  TouchableOpacityProps,
   Pressable,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+  Modal as RNModal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
-// Context for Dialog state management
-interface DialogContextType {
-  open: boolean;
-  setOpen: (open: boolean) => void;
+export interface ModalProps {
+  visible: boolean;
+  onClose: () => void;
+  title?: string;
+  children?: React.ReactNode;
+  footer?: React.ReactNode;
+  showCloseButton?: boolean;
+  closeOnOverlayPress?: boolean;
+  wrapperStyle?: ViewStyle;
+  contentStyle?: ViewStyle;
+  titleStyle?: TextStyle;
+  overlayStyle?: ViewStyle;
+  animationDuration?: number;
 }
 
-const DialogContext = createContext<DialogContextType | undefined>(undefined);
+export function Modal({
+  visible,
+  onClose,
+  title,
+  children,
+  footer,
+  showCloseButton = true,
+  closeOnOverlayPress = true,
+  wrapperStyle,
+  contentStyle,
+  titleStyle,
+  overlayStyle,
+  animationDuration = 300,
+}: ModalProps) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.9);
 
-function useDialog() {
-  const context = useContext(DialogContext);
-  if (!context) {
-    throw new Error('Dialog components must be used within a Dialog provider');
-  }
-  return context;
-}
-
-// Dialog Root Component
-interface DialogProps {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  children: React.ReactNode;
-}
-
-export function Dialog({ open: controlledOpen, onOpenChange, children }: DialogProps) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  
-  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
-  const setOpen = (newOpen: boolean) => {
-    if (onOpenChange) {
-      onOpenChange(newOpen);
+  useEffect(() => {
+    if (visible) {
+      opacity.value = withTiming(1, {
+        duration: animationDuration,
+        easing: Easing.out(Easing.ease),
+      });
+      scale.value = withTiming(1, {
+        duration: animationDuration,
+        easing: Easing.out(Easing.back(1.1)),
+      });
     } else {
-      setInternalOpen(newOpen);
+      opacity.value = withTiming(0, {
+        duration: animationDuration * 0.7,
+        easing: Easing.in(Easing.ease),
+      });
+      scale.value = withTiming(0.9, {
+        duration: animationDuration * 0.7,
+        easing: Easing.in(Easing.ease),
+      });
     }
-  };
+  }, [visible, animationDuration]);
 
-  return (
-    <DialogContext.Provider value={{ open, setOpen }}>
-      {children}
-    </DialogContext.Provider>
-  );
-}
+  const overlayAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
 
-// Dialog Trigger
-interface DialogTriggerProps extends TouchableOpacityProps {
-  children: React.ReactNode;
-}
-
-export function DialogTrigger({ children, ...props }: DialogTriggerProps) {
-  const { setOpen } = useDialog();
-  
-  return (
-    <TouchableOpacity onPress={() => setOpen(true)} {...props}>
-      {children}
-    </TouchableOpacity>
-  );
-}
-
-// Dialog Portal (not needed in RN, but kept for API compatibility)
-interface DialogPortalProps {
-  children: React.ReactNode;
-}
-
-export function DialogPortal({ children }: DialogPortalProps) {
-  return <>{children}</>;
-}
-
-// Dialog Close
-interface DialogCloseProps extends TouchableOpacityProps {
-  children: React.ReactNode;
-}
-
-export function DialogClose({ children, onPress, ...props }: DialogCloseProps) {
-  const { setOpen } = useDialog();
-  
-  return (
-    <TouchableOpacity
-      onPress={(e) => {
-        setOpen(false);
-        onPress?.(e);
-      }}
-      {...props}
-    >
-      {children}
-    </TouchableOpacity>
-  );
-}
-
-// Dialog Overlay
-interface DialogOverlayProps extends ViewProps {
-  onPress?: () => void;
-}
-
-export function DialogOverlay({ style, onPress, ...props }: DialogOverlayProps) {
-  return (
-    <Pressable
-      style={[styles.overlay, style]}
-      onPress={onPress}
-      {...props}
-    />
-  );
-}
-
-// Dialog Content
-interface DialogContentProps extends ViewProps {
-  children: React.ReactNode;
-}
-
-export function DialogContent({ children, style, ...props }: DialogContentProps) {
-  const { open, setOpen } = useDialog();
+  const contentAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
     <RNModal
-      visible={open}
+      visible={visible}
       transparent
-      animationType="fade"
-      onRequestClose={() => setOpen(false)}
+      animationType="none"
+      onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        <DialogOverlay onPress={() => setOpen(false)} />
-        <View style={[styles.content, style]} {...props}>
-          {children}
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setOpen(false)}
+        <Animated.View
+          style={[styles.overlay, overlayStyle, overlayAnimatedStyle]}
+        >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={closeOnOverlayPress ? onClose : undefined}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[styles.wrapper, wrapperStyle, contentAnimatedStyle]}
+        >
+          <View style={styles.header}>
+            {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
+            {showCloseButton && (
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.content, contentStyle]}
           >
-            <Ionicons name="close" size={24} color="#64748b" />
-          </TouchableOpacity>
-        </View>
+            {children}
+          </ScrollView>
+
+          {footer && <View style={styles.footer}>{footer}</View>}
+        </Animated.View>
       </View>
     </RNModal>
-  );
-}
-
-// Dialog Header
-interface DialogHeaderProps extends ViewProps {
-  children: React.ReactNode;
-}
-
-export function DialogHeader({ children, style, ...props }: DialogHeaderProps) {
-  return (
-    <View style={[styles.header, style]} {...props}>
-      {children}
-    </View>
-  );
-}
-
-// Dialog Footer
-interface DialogFooterProps extends ViewProps {
-  children: React.ReactNode;
-}
-
-export function DialogFooter({ children, style, ...props }: DialogFooterProps) {
-  return (
-    <View style={[styles.footer, style]} {...props}>
-      {children}
-    </View>
-  );
-}
-
-// Dialog Title
-interface DialogTitleProps extends TextProps {
-  children: React.ReactNode;
-}
-
-export function DialogTitle({ children, style, ...props }: DialogTitleProps) {
-  return (
-    <Text style={[styles.title, style]} {...props}>
-      {children}
-    </Text>
-  );
-}
-
-// Dialog Description
-interface DialogDescriptionProps extends TextProps {
-  children: React.ReactNode;
-}
-
-export function DialogDescription({ children, style, ...props }: DialogDescriptionProps) {
-  return (
-    <Text style={[styles.description, style]} {...props}>
-      {children}
-    </Text>
   );
 }
 
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   overlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  content: {
-    backgroundColor: '#ffffff',
+  wrapper: {
+    backgroundColor: "#ffffff",
     borderRadius: 16,
-    padding: 24,
-    paddingTop: 32,
-    width: '90%',
+    padding: 0,
+    width: "90%",
     maxWidth: 500,
-    shadowColor: '#000',
+    maxHeight: "90%",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -228,40 +155,38 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   closeButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: '#f1f5f9',
-    zIndex: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
   header: {
-    marginBottom: 16,
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  content: {
+    padding: 24,
+  },
+  scrollView: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 24,
-    paddingTop: 16,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    padding: 24,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: "#F3F4F6",
   },
   title: {
-    color: '#101828',
-    fontFamily: 'Nunito',
+    color: "#101828",
+    fontFamily: "Nunito",
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     lineHeight: 28,
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 14,
-    color: '#64748b',
-    lineHeight: 20,
   },
 });
