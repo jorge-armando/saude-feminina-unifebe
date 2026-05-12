@@ -1,30 +1,19 @@
-import { Link } from "expo-router";
+import { Bell, BookOpen, Calendar, Home, User } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MenuItem } from "./MenuItem";
 
 export function Menu() {
   const insets = useSafeAreaInsets();
+  const paddingBottom = Math.max(insets.bottom, 16);
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
-      <Link href="/" replace style={styles.link}>
-        Index
-      </Link>
-      <Link href="/calendar" replace style={styles.link}>
-        Calendar
-      </Link>
-      <Link href="/content" replace style={styles.link}>
-        Content
-      </Link>
-      <Link href="/home" replace style={styles.link}>
-        Home
-      </Link>
-      <Link href="/profile" replace style={styles.link}>
-        Profile
-      </Link>
-      <Link href="/reminders" replace style={styles.link}>
-        Reminders
-      </Link>
+    <View style={[styles.root, { paddingBottom }]}>
+      <MenuItem href="/calendar" text="Calendário" icon={Calendar} />
+      <MenuItem href="/content" text="Conteúdos" icon={BookOpen} />
+      <MenuItem href="/home" text="Início" icon={Home} variant="big" />
+      <MenuItem href="/reminders" text="Lembretes" icon={Bell} />
+      <MenuItem href="/profile" text="Perfil" icon={User} />
     </View>
   );
 }
@@ -37,7 +26,18 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#fff",
     flexDirection: "row",
-    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
   },
   link: {
     flex: 1,
