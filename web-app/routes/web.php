@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContentController;
 
-
 Route::get('/', function () {
+
     if (auth()->check()) {
         return redirect('/painel');
     }
@@ -26,19 +26,25 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
 
     Route::get('/painel', [ContentController::class, 'index'])
-    ->name('painel');
+        ->name('painel');
 
-    Route::get('/novo-conteudo', function () {
-        return view('create');
-    });
+    Route::get('/novo-conteudo', [ContentController::class, 'create'])
+        ->name('conteudos.create');
 
-Route::delete('/contents/{content}', [ContentController::class, 'destroy'])
-    ->name('contents.destroy');
+    Route::post('/conteudos', [ContentController::class, 'store'])
+        ->name('conteudos.store');
 
+    Route::delete('/conteudos/{content}', [ContentController::class, 'destroy'])
+        ->name('contents.destroy');
 
     Route::post('/sair', [AuthController::class, 'sair'])
         ->name('sair');
 
+    Route::get('/conteudos/{content}/editar', [ContentController::class, 'edit'])
+        ->name('contents.edit');
+
+    Route::put('/conteudos/{content}', [ContentController::class, 'update'])
+        ->name('contents.update');
 });
 
 Route::fallback(function () {

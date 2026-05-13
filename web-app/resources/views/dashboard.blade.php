@@ -89,9 +89,9 @@
 
                                 <td class="actions">
 
-                                    <button class="edit">
+                                    <a href="{{ route('contents.edit', $content) }}" class="edit">
                                         <img src="{{ asset('images/editar.png') }}" alt="Editar">
-                                    </button>
+                                    </a>
 
                                     <form action="{{ route('contents.destroy', $content->id) }}" method="POST"
                                         onsubmit="return confirm('Deseja excluir este conteúdo?')">
@@ -141,9 +141,9 @@
 
                                 <div class="actions">
 
-                                    <button class="edit">
+                                    <a href="{{ route('contents.edit', $content) }}" class="edit">
                                         <img src="{{ asset('images/editar.png') }}" alt="Editar">
-                                    </button>
+                                    </a>
 
                                     <form action="{{ route('contents.destroy', $content->id) }}" method="POST"
                                         onsubmit="return confirm('Deseja excluir este conteúdo?')">

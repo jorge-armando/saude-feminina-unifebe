@@ -10,6 +10,6 @@ class Content extends Model
         'title',
         'content',
         'tags',
-        'reading_time'
+        'reading_time',
     ];
 }

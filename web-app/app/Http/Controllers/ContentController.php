@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Content;
+use Illuminate\Http\Request;
 
 class ContentController extends Controller
 {
@@ -19,6 +20,48 @@ class ContentController extends Controller
             ->get();
 
         return view('dashboard', compact('contents'));
+    }
+
+    public function create()
+    {
+        return view('create');
+    }
+
+    public function edit(Content $content)
+{
+    return view('create', compact('content'));
+}
+
+public function update(Request $request, Content $content)
+{
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'content' => 'required|string',
+        'tags' => 'nullable|string|max:255',
+        'reading_time' => 'required|integer|min:1',
+    ]);
+
+    $content->update($validated);
+
+    return redirect()
+        ->route('painel')
+        ->with('success', 'Conteúdo atualizado com sucesso.');
+}
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'tags' => 'nullable|string|max:255',
+            'reading_time' => 'required|integer|min:1',
+        ]);
+
+        Content::create($validated);
+
+        return redirect()
+            ->route('painel')
+            ->with('success', 'Conteúdo criado com sucesso.');
     }
 
     public function destroy(Content $content)

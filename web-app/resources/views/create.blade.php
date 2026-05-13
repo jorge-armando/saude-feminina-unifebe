@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Novo Conteúdo')
+@section('title', isset($content) ? 'Editar Conteúdo' : 'Novo Conteúdo')
 
 @section('content')
 
@@ -15,16 +15,21 @@
                 </a>
 
                 <div>
-                    <h1>Novo Conteúdo</h1>
-                    <p>Preencha os campos abaixo</p>
+                    <h1>{{ isset($content) ? 'Editar Conteúdo' : 'Novo Conteúdo' }}</h1>
+                    <p>{{ isset($content) ? 'Altere os campos abaixo' : 'Preencha os campos abaixo' }}</p>
                 </div>
             </div>
         </div>
 
         <div class="create-content">
 
-            <form action="" method="POST" class="create-form">
+            <form action="{{ isset($content) ? route('contents.update', $content) : route('conteudos.store') }}"
+                method="POST" class="create-form">
                 @csrf
+
+                @if(isset($content))
+                    @method('PUT')
+                @endif
 
                 <div class="form-card">
 
@@ -32,17 +37,20 @@
 
                     <div class="form-group">
                         <label>Título</label>
-                        <input type="text" name="title" placeholder="Ex: Entendendo o Ciclo Menstrual" required>
+                        <input type="text" name="title" placeholder="Ex: Entendendo o Ciclo Menstrual"
+                            value="{{ old('title', $content->title ?? '') }}" required>
                     </div>
 
                     <div class="form-group">
                         <label>Tempo de Leitura</label>
-                        <input type="number" name="reading_time" placeholder="Ex: 5" required>
+                        <input type="number" name="reading_time" placeholder="Ex: 5"
+                            value="{{ old('reading_time', $content->reading_time ?? '') }}" required>
                     </div>
 
                     <div class="form-group">
                         <label>Tags</label>
-                        <input type="text" name="tags" placeholder="ciclo, saúde, bem-estar">
+                        <input type="text" name="tags" placeholder="ciclo, saúde, bem-estar"
+                            value="{{ old('tags', $content->tags ?? '') }}">
 
                         <small>Separe as tags com vírgula</small>
                     </div>
@@ -54,11 +62,10 @@
                     <h2>Conteúdo</h2>
 
                     <div class="form-group">
-                        <label></label>
-
                         <div id="editor"></div>
 
-                        <input type="hidden" name="content" id="content">
+                        <input type="hidden" name="content" id="content"
+                            value="{{ old('content', $content->content ?? '') }}">
                     </div>
 
                 </div>
@@ -67,7 +74,7 @@
                     <a href="{{ route('painel') }}" class="btn-cancel">Cancelar</a>
 
                     <button type="submit" class="btn-save">
-                        Criar Conteúdo
+                        {{ isset($content) ? 'Salvar Alterações' : 'Criar Conteúdo' }}
                     </button>
                 </div>
 
@@ -98,6 +105,8 @@
 
                     placeholder: 'Escreva seu conteúdo aqui...',
 
+                    initialValue: @json(old('content', $content->content ?? '')),
+
                     hideModeSwitch: false,
 
                     toolbarItems: [
@@ -107,13 +116,15 @@
                     ]
 
                 });
+                setTimeout(function () {
+                    window.scrollTo(0, 0);
+                }, 100);
 
                 const form = document.querySelector('.create-form');
 
                 form.addEventListener('submit', function () {
 
-                    document.querySelector('#content').value =
-                        editor.getMarkdown();
+                    document.querySelector('#content').value = editor.getMarkdown();
 
                 });
 
@@ -121,4 +132,5 @@
 
         });
     </script>
+
 @endsection
