@@ -183,7 +183,11 @@ export default function RemindersPage() {
       Number(reminder.month) - 1,
       Number(reminder.day)
     );
-    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    return date.toLocaleDateString('pt-BR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
   };
 
   const formatTime = (hour: string, minute: string) =>

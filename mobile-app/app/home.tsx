@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   cycleBadge: {
     backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 999,
   },
 
