@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Content;
+use App\Http\Resources\ContentResource;
 use Illuminate\Http\Request;
 
 class ContentController extends Controller
@@ -20,6 +21,22 @@ class ContentController extends Controller
             ->get();
 
         return view('dashboard', compact('contents'));
+    }
+
+    public function apiIndex()
+    {
+        $search = request('search');
+        $perPage = min(request('per_page', 15), 50);
+
+        $contents = Content::when($search, function ($query, $search) {
+            return $query->where('title', 'like', "%{$search}%")
+                ->orWhere('tags', 'like', "%{$search}%")
+                ->orWhere('content', 'like', "%{$search}%");
+        })
+            ->latest()
+            ->paginate($perPage);
+
+        return ContentResource::collection($contents);
     }
 
     public function create()

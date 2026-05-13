@@ -38,10 +38,10 @@ O <strong>Minha Saúde Feminina</strong> é um aplicativo para celular desenvolv
 
 O sistema permite:
 
+- 📚 Acessar conteúdos educativos
 - 📅 Acompanhar o ciclo menstrual
 - 💬 Registrar sintomas e emoções
 - ⏰ Criar lembretes personalizados
-- 📚 Acessar conteúdos educativos
 
 ---
 
@@ -90,4 +90,10 @@ A aplicação web administrativa está sendo desenvolvida utilizando Laravel e p
 
 # 🔗 Integração Mobile e Web
 
-A comunicação entre o aplicativo mobile e a aplicação web será realizada utilizando XXX, permitindo sincronização dinâmica dos conteúdos cadastrados pelo administrador.
+A comunicação entre o aplicativo mobile e a aplicação web é realizada através de uma **API RESTful** desenvolvida em Laravel. O aplicativo consome endpoints HTTP para sincronizar dinamicamente os conteúdos educativos cadastrados pelo administrador no painel web.
+
+Essa arquitetura garante que:
+- ✅ Novos conteúdos sejam disponibilizados instantaneamente no app
+- ✅ Atualizações sejam refletidas em tempo real
+- ✅ Os dados pessoais das usuárias permaneçam armazenados localmente (SQLite)
+- ✅ Apenas conteúdos públicos sejam sincronizados via API
