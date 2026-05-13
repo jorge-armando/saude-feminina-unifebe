@@ -1,10 +1,10 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -19,8 +19,26 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 
-export default function WelcomePage() {
+export default function Index() {
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkWelcome() {
+      const hasCompletedWelcome = await AsyncStorage.getItem(
+        'hasCompletedWelcome'
+      );
+
+      if (hasCompletedWelcome === 'true') {
+        router.replace('/home');
+        return;
+      }
+
+      setLoading(false);
+    }
+
+    checkWelcome();
+  }, []);
 
   async function handleSubmit() {
     if (!name.trim()) return;
@@ -31,12 +49,22 @@ export default function WelcomePage() {
     router.replace('/home');
   }
 
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={['#ffe4e6', '#fce7f3', '#f3e8ff']}
+        style={styles.loadingContainer}
+      >
+        <ActivityIndicator size="large" color="#ec4899" />
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['#ffe4e6', '#fce7f3', '#f3e8ff']}
       style={styles.container}
     >
-      {/* Blobs decorativos */}
       <View style={styles.blobTop} />
       <View style={styles.blobBottom} />
 
@@ -44,7 +72,6 @@ export default function WelcomePage() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.content}
       >
-        {/* Logo */}
         <Animated.View
           entering={ZoomIn.delay(200)}
           style={styles.logoWrapper}
@@ -57,7 +84,6 @@ export default function WelcomePage() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Título */}
         <Animated.Text
           entering={FadeInDown.delay(300)}
           style={styles.title}
@@ -72,7 +98,6 @@ export default function WelcomePage() {
           Como devo chamá-la?
         </Animated.Text>
 
-        {/* Form */}
         <Animated.View
           entering={FadeInDown.delay(500)}
           style={styles.form}
@@ -101,14 +126,11 @@ export default function WelcomePage() {
               end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>
-                Continuar
-              </Text>
+              <Text style={styles.buttonText}>Continuar</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Texto final */}
         <Animated.Text
           entering={FadeIn.delay(1000)}
           style={styles.footerText}
@@ -123,6 +145,12 @@ export default function WelcomePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
   },
 

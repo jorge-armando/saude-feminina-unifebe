@@ -65,6 +65,7 @@ export default function HomePage() {
 
   const contents = [
     {
+      id: '1',
       title: 'O que é a fase lútea?',
       category: 'Para você hoje',
       time: '3 min',
@@ -72,6 +73,7 @@ export default function HomePage() {
       colors: ['#fb7185', '#fda4af'],
     },
     {
+      id: '2',
       title: 'Receitas ricas em magnésio',
       category: 'Alimentação',
       time: '5 min',
@@ -123,6 +125,21 @@ export default function HomePage() {
     };
   };
 
+  const handleQuickAction = (route: string | null) => {
+    if (!route) {
+      return;
+    }
+
+    router.push(route as any);
+  };
+
+  const handleOpenContentDetail = (id: string) => {
+    router.push({
+      pathname: '/content-detail',
+      params: { id },
+    });
+  };
+
   const cycleInfo = getCyclePhase();
   const cycleProgress = (currentDay / cycleLength) * 100;
 
@@ -171,16 +188,10 @@ export default function HomePage() {
           </TouchableOpacity>
         </View>
 
-        <LinearGradient colors={cycleInfo.colors as any} style={styles.cycleCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cycleBadge}>
-              <Text style={styles.cycleBadgeText}>Ciclo atual</Text>
-            </View>
-            <View style={styles.dayBadge}>
-              <Text style={styles.dayBadgeText}>Dia {currentDay}</Text>
-            </View>
-          </View>
-
+        <LinearGradient
+          colors={cycleInfo.colors as any}
+          style={styles.cycleCard}
+        >
           <View style={styles.cycleTop}>
             <View style={styles.cycleLeft}>
               <View style={styles.cycleIconBox}>
@@ -223,9 +234,9 @@ export default function HomePage() {
           {quickActions.map((item, index) => (
             <TouchableOpacity
               key={index}
-              activeOpacity={0.88}
-              style={styles.actionCard}
-              onPress={() => router.push(item.link)}
+              activeOpacity={0.85}
+              style={styles.actionButton}
+              onPress={() => handleQuickAction(item.route)}
             >
               <LinearGradient colors={item.colors as any} style={styles.actionGradient}>
                 <Text style={styles.actionEmoji}>{item.emoji}</Text>
@@ -278,12 +289,12 @@ export default function HomePage() {
           <Text style={styles.sectionTitle}>Últimos conteúdos</Text>
         </View>
 
-        {contents.map((item, index) => (
+        {contents.map((item) => (
           <TouchableOpacity
-            key={index}
-            activeOpacity={0.86}
+            key={item.id}
+            activeOpacity={0.85}
             style={styles.contentCard}
-            onPress={() => router.push('/content')}
+            onPress={() => handleOpenContentDetail(item.id)}
           >
             <View style={styles.contentRow}>
               <LinearGradient colors={item.colors as any} style={styles.contentEmojiBox}>
