@@ -38,10 +38,10 @@ O <strong>Minha Saúde Feminina</strong> é um aplicativo para celular desenvolv
 
 O sistema permite:
 
-- 📅 acompanhar o ciclo menstrual
-- 💬 registrar sintomas e emoções
-- ⏰ criar lembretes personalizados
-- 📚 acessar conteúdos educativos
+- 📅 Acompanhar o ciclo menstrual
+- 💬 Registrar sintomas e emoções
+- ⏰ Criar lembretes personalizados
+- 📚 Acessar conteúdos educativos
 
 ---
 
