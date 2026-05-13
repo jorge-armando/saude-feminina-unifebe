@@ -11,6 +11,10 @@ Projeto desenvolvido na curricularização da extensão do curso de sistemas de 
 </p>
 
 <p align="center">
+Alunos: Hercilio Zanca Neto, João Gabriel Costa, Jorge Armando e Thiago Oliveira.
+</p>
+
+<p align="center">
 
 <img src="https://img.shields.io/badge/React_Native-Mobile-61DAFB?style=for-the-badge&logo=react&logoColor=black">
 
@@ -26,3 +30,64 @@ Projeto desenvolvido na curricularização da extensão do curso de sistemas de 
 
 </p>
 
+---
+
+# 💖 Sobre o Projeto
+
+O <strong>Minha Saúde Feminina</strong> é um aplicativo para celular desenvolvido para auxiliar mulheres no acompanhamento do ciclo menstrual e no cuidado com a saúde.
+
+O sistema permite:
+
+- 📅 acompanhar o ciclo menstrual
+- 💬 registrar sintomas e emoções
+- ⏰ criar lembretes personalizados
+- 📚 acessar conteúdos educativos
+
+---
+
+# 📱 Aplicativo Mobile
+
+O aplicativo mobile está sendo desenvolvido utilizando <strong>React Native</strong>, permitindo compatibilidade com dispositivos Android e IOS.
+
+Os dados da usuária são armazenados localmente utilizando SQLite, garantindo maior privacidade e evitando o login obrigatório.
+
+
+## ✨ Funcionalidades
+
+- Home com resumo do ciclo
+- Calendário menstrual
+- Lembretes
+- Registro de sintomas
+- Conteúdos educativos
+- Perfil da usuária
+
+---
+
+
+# 💻 Painel Administrativo
+
+A aplicação web administrativa está sendo desenvolvida utilizando Laravel e possui como objetivo gerenciar os conteúdos exibidos no aplicativo.
+
+## ⚙️ Funcionalidades
+
+- Login administrativo
+- Cadastro de conteúdos
+- Edição de conteúdos
+- Exclusão de conteúdos
+- Busca de conteúdos
+
+---
+
+# 🛠️ Tecnologias utilizadas
+
+<p align="center">
+
+<img src="https://skillicons.dev/icons?i=react,laravel,php,mysql,sqlite,js,html,css,vscode">
+
+</p>
+
+---
+
+# 🔗 Integração Mobile e Web
+
+A comunicação entre o aplicativo mobile e a aplicação web será realizada utilizando XXX, permitindo sincronização dinâmica dos conteúdos cadastrados pelo administrador.
