@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import { useNavigationState } from "../../hooks/useNavigationState";
 import {
   Dimensions,
   ScrollView,
@@ -12,11 +14,39 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { dailyMessages } from "../../data/dailyMessages";
+
+interface Reminder {
+  id: string;
+  type: string;
+  title: string;
+  emoji: string;
+  date: string;
+}
+
+const dailyIcons = ["💝", "🌸", "✨", "🌙", "💕", "🦋", "🌺", "💫"];
+
+const dailyColors = [
+  ["#f59e0b", "#fb7185", "#a855f7"], // Original
+  ["#ec4899", "#f97316", "#8b5cf6"], // Rosa, laranja, roxo
+  ["#06b6d4", "#3b82f6", "#8b5cf6"], // Ciano, azul, roxo
+  ["#10b981", "#f59e0b", "#ef4444"], // Verde, amarelo, vermelho
+  ["#a855f7", "#ec4899", "#06b6d4"], // Roxo, rosa, ciano
+  ["#f97316", "#10b981", "#3b82f6"], // Laranja, verde, azul
+];
 
 const { width } = Dimensions.get("window");
 
 export default function HomePage() {
   const [userName, setUserName] = useState("Maria");
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [dailyMessage, setDailyMessage] = useState(dailyMessages[0]);
+  const [dailyIcon, setDailyIcon] = useState(dailyIcons[0]);
+  const [dailyColorScheme, setDailyColorScheme] = useState(dailyColors[0]);
+
+  const isFocused = useIsFocused();
+
+  useNavigationState("/user/home");
 
   const currentDay = 12;
   const cycleLength = 28;
@@ -33,6 +63,102 @@ export default function HomePage() {
     loadUser();
   }, []);
 
+  useEffect(() => {
+    async function loadReminders() {
+      const storedReminders = await AsyncStorage.getItem("userReminders");
+
+      if (!storedReminders) {
+        return;
+      }
+
+      try {
+        const parsedReminders = JSON.parse(storedReminders) as Array<{
+          id: string;
+          title: string;
+          emoji: string;
+          day?: string;
+          month?: string;
+          year?: string;
+          date?: string;
+        }>;
+
+        const mappedReminders = parsedReminders.map((item) => ({
+          id: item.id,
+          type: "Lembrete",
+          title: item.title,
+          emoji: item.emoji ?? "📅",
+          date:
+            item.date ||
+            (item.day && item.month && item.year
+              ? new Date(
+                  Number(item.year),
+                  Number(item.month) - 1,
+                  Number(item.day)
+                ).toLocaleDateString("pt-BR", {
+                  day: "numeric",
+                  month: "long",
+                })
+              : ""),
+        }));
+
+        setReminders(mappedReminders);
+      } catch (error) {
+        // ignore invalid stored reminders and keep defaults
+      }
+    }
+
+    if (isFocused) {
+      loadReminders();
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
+    async function loadDailyMessage() {
+      const today = new Date().toDateString();
+      const storedDate = await AsyncStorage.getItem("dailyMessageDate");
+      const storedMessage = await AsyncStorage.getItem("dailyMessage");
+      const storedIcon = await AsyncStorage.getItem("dailyMessageIcon");
+      const storedColors = await AsyncStorage.getItem("dailyMessageColors");
+
+      if (storedDate === today && storedMessage && storedIcon && storedColors) {
+        setDailyMessage(storedMessage);
+        setDailyIcon(storedIcon);
+        setDailyColorScheme(JSON.parse(storedColors));
+      } else {
+        const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
+        const randomIcon = dailyIcons[Math.floor(Math.random() * dailyIcons.length)];
+        const randomColors = dailyColors[Math.floor(Math.random() * dailyColors.length)];
+
+        setDailyMessage(randomMessage);
+        setDailyIcon(randomIcon);
+        setDailyColorScheme(randomColors);
+
+        await AsyncStorage.setItem("dailyMessageDate", today);
+        await AsyncStorage.setItem("dailyMessage", randomMessage);
+        await AsyncStorage.setItem("dailyMessageIcon", randomIcon);
+        await AsyncStorage.setItem("dailyMessageColors", JSON.stringify(randomColors));
+      }
+    }
+
+    loadDailyMessage();
+  }, []);
+
+  const refreshDailyMessage = async () => {
+    const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
+    const randomIcon = dailyIcons[Math.floor(Math.random() * dailyIcons.length)];
+    const randomColors = dailyColors[Math.floor(Math.random() * dailyColors.length)];
+
+    setDailyMessage(randomMessage);
+    setDailyIcon(randomIcon);
+    setDailyColorScheme(randomColors);
+
+    const today = new Date().toDateString();
+    await AsyncStorage.setItem("dailyMessageDate", today);
+    await AsyncStorage.setItem("dailyMessage", randomMessage);
+    await AsyncStorage.setItem("dailyMessageIcon", randomIcon);
+    await AsyncStorage.setItem("dailyMessageColors", JSON.stringify(randomColors));
+  };
+
   const quickActions = [
     {
       title: "Meu Ciclo",
@@ -47,21 +173,6 @@ export default function HomePage() {
       link: "/user/content" as const,
     },
   ] as const;
-
-  const reminders = [
-    {
-      type: "Exame",
-      title: "Papanicolau",
-      date: "22 de Março",
-      emoji: "🏥",
-    },
-    {
-      type: "Consulta",
-      title: "Ginecologista - Dra. Ana",
-      date: "5 de Abril",
-      emoji: "👩‍⚕️",
-    },
-  ];
 
   const contents = [
     {
@@ -242,7 +353,10 @@ export default function HomePage() {
             <TouchableOpacity
               key={index}
               activeOpacity={0.85}
-              style={styles.actionCard}
+              style={[
+                styles.actionCard,
+                index < quickActions.length - 1 && styles.actionCardSpacing,
+              ]}
               onPress={() => handleQuickAction(item.link)}
             >
               <LinearGradient
@@ -257,13 +371,20 @@ export default function HomePage() {
         </View>
 
         <LinearGradient
-          colors={["#f59e0b", "#fb7185", "#a855f7"]}
+          colors={dailyColorScheme as any}
           style={styles.dailyCard}
         >
-          <Text style={styles.dailyTitle}>💝 Mensagem do Dia</Text>
+          <View style={styles.dailyHeader}>
+            <Text style={styles.dailyTitle}>{dailyIcon} Mensagem do Dia</Text>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={refreshDailyMessage}
+            >
+              <Ionicons name="refresh" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.dailyText}>
-            "Cada fase do seu ciclo é uma oportunidade de se conhecer melhor.
-            Seja gentil com você mesma."
+            &ldquo;{dailyMessage}&rdquo;
           </Text>
         </LinearGradient>
 
@@ -278,26 +399,36 @@ export default function HomePage() {
           </TouchableOpacity>
         </View>
 
-        {reminders.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            activeOpacity={0.86}
-            style={styles.reminderCard}
-            onPress={() => router.push("/user/reminders")}
-          >
-            <View style={styles.reminderLeft}>
-              <View style={styles.reminderEmojiBox}>
-                <Text style={styles.reminderEmoji}>{item.emoji}</Text>
+        {reminders.length === 0 ? (
+          <View style={styles.emptyRemindersContainer}>
+            <Text style={styles.emptyRemindersEmoji}>📭</Text>
+            <Text style={styles.emptyRemindersTitle}>Você não tem nenhum lembrete</Text>
+            <Text style={styles.emptyRemindersSubtitle}>
+              Crie seu primeiro lembrete clicando em &ldquo;Ver todos →&rdquo;
+            </Text>
+          </View>
+        ) : (
+          reminders.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              activeOpacity={0.86}
+              style={styles.reminderCard}
+              onPress={() => router.push("/user/reminders")}
+            >
+              <View style={styles.reminderLeft}>
+                <View style={styles.reminderEmojiBox}>
+                  <Text style={styles.reminderEmoji}>{item.emoji}</Text>
+                </View>
+                <View>
+                  <Text style={styles.reminderType}>{item.type}</Text>
+                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  <Text style={styles.reminderDate}>🕒 {item.date}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.reminderType}>{item.type}</Text>
-                <Text style={styles.reminderTitle}>{item.title}</Text>
-                <Text style={styles.reminderDate}>🕒 {item.date}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#f43f5e" />
-          </TouchableOpacity>
-        ))}
+              <Ionicons name="chevron-forward" size={22} color="#f43f5e" />
+            </TouchableOpacity>
+          ))
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Últimos conteúdos</Text>
@@ -311,12 +442,6 @@ export default function HomePage() {
             onPress={() => handleOpenContentDetail(item.id)}
           >
             <View style={styles.contentRow}>
-              <LinearGradient
-                colors={item.colors as any}
-                style={styles.contentEmojiBox}
-              >
-                <Text style={styles.contentEmoji}>{item.emoji}</Text>
-              </LinearGradient>
               <View style={styles.contentInfo}>
                 <View style={styles.contentBadge}>
                   <Text style={styles.contentBadgeText}>{item.category}</Text>
@@ -678,7 +803,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 30,
     padding: 18,
-    marginRight: 14,
+    alignItems: "center",
+    justifyContent: "center",
 
     shadowColor: "#ec4899",
     shadowOpacity: 0.08,
@@ -689,6 +815,17 @@ const styles = StyleSheet.create({
     },
 
     elevation: 5,
+  },
+
+  actionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+  },
+
+  actionCardSpacing: {
+    marginRight: 14,
   },
 
   actionGradient: {
@@ -704,12 +841,6 @@ const styles = StyleSheet.create({
 
   actionEmoji: {
     fontSize: 32,
-  },
-
-  actionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#111827",
   },
 
   dailyCard: {
@@ -728,11 +859,26 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
+  dailyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+
   dailyTitle: {
     color: "#fff",
     fontSize: 20,
     fontWeight: "800",
-    marginBottom: 14,
+  },
+
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   dailyText: {
@@ -807,6 +953,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: "hidden",
     marginBottom: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
 
     shadowColor: "#ec4899",
     shadowOpacity: 0.06,
@@ -840,7 +988,7 @@ const styles = StyleSheet.create({
 
   contentInfo: {
     flex: 1,
-    padding: 18,
+    padding: 0,
   },
 
   contentBadge: {
@@ -885,5 +1033,30 @@ const styles = StyleSheet.create({
     color: "#be185d",
     fontSize: 16,
     fontWeight: "800",
+  },
+
+  emptyRemindersContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyRemindersEmoji: {
+    fontSize: 56,
+    marginBottom: 16,
+  },
+
+  emptyRemindersTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: "#111827",
+  },
+
+  emptyRemindersSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
   },
 });

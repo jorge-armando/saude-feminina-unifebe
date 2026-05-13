@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigationState } from '../../hooks/useNavigationState';
 
 interface NoteItem {
   id: string;
@@ -38,6 +39,8 @@ export default function CalendarPage() {
 
   const [selectedEmoji, setSelectedEmoji] =
     useState('💖');
+
+  useNavigationState('/user/calendar');
 
   const daysOfWeek = [
     'Dom',

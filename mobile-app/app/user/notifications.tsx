@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Bell, X, Check } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { useNavigationState } from '../../hooks/useNavigationState';
 
 interface NotificationItem {
   id: string;
@@ -46,6 +47,8 @@ export default function NotificationsScreen() {
       read: true,
     },
   ]);
+
+  useNavigationState('/user/notifications');
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

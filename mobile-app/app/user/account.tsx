@@ -1,6 +1,9 @@
 import { View, Text, StyleSheet } from "react-native";
+import { useNavigationState } from "../../hooks/useNavigationState";
 
 export default function AccountPage() {
+  useNavigationState('/user/account');
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Minha Conta</Text>

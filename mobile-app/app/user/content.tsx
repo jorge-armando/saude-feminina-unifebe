@@ -10,10 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useNavigationState } from "../../hooks/useNavigationState";
 
 export default function ContentPage() {
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState("Todos");
+
+  useNavigationState('/user/content');
 
   const filters = ["Todos", "Ciclo", "Saúde", "Alimentação"];
 

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useNavigationState } from "../../hooks/useNavigationState";
 
 const conteúdos = [
   {
@@ -48,6 +49,8 @@ export default function ContentDetailScreen() {
 
   const conteudo =
     conteúdos.find((item) => item.id === String(id)) || conteúdos[0];
+
+  useNavigationState('/user/content-detail');
 
   return (
     <View style={styles.container}>

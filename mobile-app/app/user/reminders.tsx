@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plus, X, Calendar, Clock, Trash2, Edit2, Check } from 'lucide-react-native';
+import { useNavigationState } from '../../hooks/useNavigationState';
 
 interface Reminder {
   id: string;
@@ -25,31 +27,36 @@ interface Reminder {
   notes?: string;
 }
 
+const REMINDERS_STORAGE_KEY = 'userReminders';
+
+const defaultReminders: Reminder[] = [
+  {
+    id: '1',
+    title: 'Papanicolau',
+    day: '22',
+    month: '03',
+    year: '2026',
+    hour: '14',
+    minute: '00',
+    emoji: '🏥',
+    notes: 'Clínica Dr. Silva',
+  },
+  {
+    id: '2',
+    title: 'Ginecologista - Dra. Ana',
+    day: '05',
+    month: '04',
+    year: '2026',
+    hour: '09',
+    minute: '30',
+    emoji: '👩‍⚕️',
+    notes: 'Consulta de rotina',
+  },
+];
+
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState<Reminder[]>([
-    {
-      id: '1',
-      title: 'Papanicolau',
-      day: '22',
-      month: '03',
-      year: '2026',
-      hour: '14',
-      minute: '00',
-      emoji: '🏥',
-      notes: 'Clínica Dr. Silva',
-    },
-    {
-      id: '2',
-      title: 'Ginecologista - Dra. Ana',
-      day: '05',
-      month: '04',
-      year: '2026',
-      hour: '09',
-      minute: '30',
-      emoji: '👩‍⚕️',
-      notes: 'Consulta de rotina',
-    },
-  ]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -63,6 +70,8 @@ export default function RemindersPage() {
     emoji: '📅',
     notes: '',
   });
+
+  useNavigationState('/user/reminders');
 
   const emojiOptions = [
     '🏥',
@@ -176,6 +185,33 @@ export default function RemindersPage() {
       notes: '',
     });
   };
+
+  useEffect(() => {
+    async function loadReminders() {
+      try {
+        const storedReminders = await AsyncStorage.getItem(REMINDERS_STORAGE_KEY);
+        if (storedReminders) {
+          setReminders(JSON.parse(storedReminders));
+        } else {
+          setReminders(defaultReminders);
+        }
+      } catch (error) {
+        setReminders(defaultReminders);
+      } finally {
+        setIsReady(true);
+      }
+    }
+
+    loadReminders();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    AsyncStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+  }, [reminders, isReady]);
 
   const formatDate = (reminder: Reminder) => {
     const date = new Date(

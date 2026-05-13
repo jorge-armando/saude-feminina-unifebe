@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,15 +15,31 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { useRouter } from 'expo-router';
+import { useNavigationState } from '../../hooks/useNavigationState';
 
 export default function ProfilePage() {
   const [name, setName] = useState('Maria Silva');
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
+  const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
+  const [isNotificationsModalVisible, setIsNotificationsModalVisible] = useState(false);
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [newContentEnabled, setNewContentEnabled] = useState(true);
+  const [generalNotificationsEnabled, setGeneralNotificationsEnabled] = useState(true);
 
-  const router = useRouter();
+  useNavigationState('/user/profile');
+
+  useEffect(() => {
+    async function loadName() {
+      const savedName = await AsyncStorage.getItem('userName');
+      if (savedName) {
+        setName(savedName);
+      }
+    }
+
+    loadName();
+  }, []);
+
 
   const healthInfo = [
     { label: 'Próxima menstruação', value: '5 de Março', icon: '🌸' },
@@ -45,12 +62,6 @@ export default function ProfilePage() {
       color: '#a78bfa',
     },
     {
-      id: 'privacy',
-      title: 'Privacidade',
-      icon: 'lock-closed-outline',
-      color: '#34d399',
-    },
-    {
       id: 'help',
       title: 'Ajuda e Suporte',
       icon: 'help-circle-outline',
@@ -64,11 +75,6 @@ export default function ProfilePage() {
       await AsyncStorage.setItem('userName', editedName.trim());
       setIsEditingName(false);
     }
-  };
-
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem('hasCompletedWelcome');
-    await AsyncStorage.removeItem('userName');
   };
 
   return (
@@ -101,7 +107,7 @@ export default function ProfilePage() {
                   <Text style={styles.avatarEmoji}>👤</Text>
                 </View>
 
-                <View style={styles.profileInfo}>
+                <View style={styles.nameAndBadge}>
                   <Text style={styles.profileName}>{name}</Text>
 
                   <Badge gradient={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.3)'] as const}>
@@ -160,7 +166,13 @@ export default function ProfilePage() {
               key={item.id}
               entering={FadeInDown.delay(500 + index * 50).springify()}
             >
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  if (item.id === 'help') setIsHelpModalVisible(true);
+                  else if (item.id === 'notifications') setIsNotificationsModalVisible(true);
+                }}
+              >
                 <View style={styles.menuLeft}>
                   <View style={[styles.menuIcon, { backgroundColor: item.color + '20' }]}>
                     <Ionicons name={item.icon as any} size={24} color={item.color} />
@@ -195,17 +207,6 @@ export default function ProfilePage() {
               </Text>
             </LinearGradient>
           </Card>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(800).springify()} style={styles.section}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-            <Text style={styles.logoutText}>Sair da conta</Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(900).springify()} style={styles.privacyNote}>
-          <Text style={styles.privacyText}>Seus dados são protegidos e privados 🔒</Text>
         </Animated.View>
       </ScrollView>
 
@@ -249,6 +250,65 @@ export default function ProfilePage() {
 <TouchableOpacity style={styles.saveButton} onPress={handleSaveName}>
   <Text style={styles.saveText}>✓ Salvar</Text>
 </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isHelpModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🆘 Ajuda e Suporte</Text>
+              <TouchableOpacity onPress={() => setIsHelpModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalLabel}>Entre em contato conosco:</Text>
+            <Text style={styles.contactText}>📧 Email: suporte@saudefeminina.com</Text>
+            <Text style={styles.contactText}>📞 Telefone: (11) 9999-9999</Text>
+            <Text style={styles.contactText}>💬 Chat online disponível 24/7</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setIsHelpModalVisible(false)}
+              >
+                <Text style={styles.cancelText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isNotificationsModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🔔 Notificações</Text>
+              <TouchableOpacity onPress={() => setIsNotificationsModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalLabel}>Configure quais notificações deseja receber:</Text>
+            <View style={styles.toggleItem}>
+              <Text style={styles.modalPrivacyText}>Lembretes de ciclo menstrual</Text>
+              <Switch value={remindersEnabled} onValueChange={setRemindersEnabled} />
+            </View>
+            <View style={styles.toggleItem}>
+              <Text style={styles.modalPrivacyText}>Novos conteúdos e dicas</Text>
+              <Switch value={newContentEnabled} onValueChange={setNewContentEnabled} />
+            </View>
+            <View style={styles.toggleItem}>
+              <Text style={styles.modalPrivacyText}>Notificações gerais do app</Text>
+              <Switch value={generalNotificationsEnabled} onValueChange={setGeneralNotificationsEnabled} />
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setIsNotificationsModalVisible(false)}
+              >
+                <Text style={styles.cancelText}>Fechar</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -332,8 +392,9 @@ const styles = StyleSheet.create({
     fontSize: 48,
   },
 
-  profileInfo: {
+  nameAndBadge: {
     flex: 1,
+    alignItems: 'flex-start',
   },
 
   profileName: {
@@ -469,38 +530,6 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
 
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ef4444',
-  },
-
-  privacyNote: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-
-  privacyText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -540,6 +569,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
+  },
+
+  contactText: {
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 8,
+  },
+
+  toggleItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+
+  modalPrivacyText: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+    marginRight: 12,
   },
 
   input: {

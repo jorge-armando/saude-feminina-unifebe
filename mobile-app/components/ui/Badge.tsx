@@ -13,7 +13,7 @@ export function Badge({ children, variant = 'default', gradient, style, ...props
     return (
       <View style={[styles.badge, style]}>
         <LinearGradient
-          colors={gradient}
+          colors={gradient as any}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'left',
   },
   text_default: {
     color: '#374151',
@@ -81,5 +82,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
+    textAlign: 'left',
   },
 });

@@ -26,7 +26,13 @@ export default function Index() {
       );
 
       if (hasCompletedWelcome === "true") {
-        router.replace("/user/home");
+        // Verificar se há uma tela salva para restaurar
+        const savedScreen = await AsyncStorage.getItem("currentScreen");
+        if (savedScreen) {
+          router.replace(savedScreen as any);
+        } else {
+          router.replace("/user/home");
+        }
         return;
       }
 
