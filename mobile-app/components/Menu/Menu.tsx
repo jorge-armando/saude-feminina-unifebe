@@ -9,11 +9,11 @@ export function Menu() {
 
   return (
     <View style={[styles.root, { paddingBottom }]}>
-      <MenuItem href="/calendar" text="Calendário" icon={Calendar} />
-      <MenuItem href="/content" text="Conteúdos" icon={BookOpen} />
-      <MenuItem href="/home" text="Início" icon={Home} variant="big" />
-      <MenuItem href="/reminders" text="Lembretes" icon={Bell} />
-      <MenuItem href="/profile" text="Perfil" icon={User} />
+      <MenuItem href="/user/calendar" text="Calendário" icon={Calendar} />
+      <MenuItem href="/user/content" text="Conteúdos" icon={BookOpen} />
+      <MenuItem href="/user/home" text="Início" icon={Home} variant="big" />
+      <MenuItem href="/user/reminders" text="Lembretes" icon={Bell} />
+      <MenuItem href="/user/profile" text="Perfil" icon={User} />
     </View>
   );
 }

@@ -1,15 +1,15 @@
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  View,
-  Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 
 export default function ContentPage() {
   const router = useRouter();
@@ -131,7 +131,9 @@ export default function ContentPage() {
           <Text style={styles.sectionTitle}>Em Destaque ✨</Text>
         </View>
 
-        <TouchableOpacity onPress={() => router.push("/content-detail" as any)}>
+        <TouchableOpacity
+          onPress={() => router.push("/user/content-detail" as any)}
+        >
           <LinearGradient
             colors={["#a855f7", "#ec4899", "#fb7185"]}
             start={{ x: 0, y: 0 }}
@@ -170,7 +172,7 @@ export default function ContentPage() {
             style={styles.articleCard}
             onPress={() => {
               if (index === 0) {
-                router.push("/content-detail" as any);
+                router.push("/user/content-detail" as any);
               }
             }}
           >
@@ -196,7 +198,11 @@ export default function ContentPage() {
 
               <View style={styles.articleActions}>
                 <TouchableOpacity style={styles.saveIcon}>
-                  <Ionicons name={article.icon as any} size={18} color="#ec4899" />
+                  <Ionicons
+                    name={article.icon as any}
+                    size={18}
+                    color="#ec4899"
+                  />
                 </TouchableOpacity>
 
                 <View style={styles.arrowButton}>

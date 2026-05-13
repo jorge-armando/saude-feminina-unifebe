@@ -1,18 +1,5 @@
-import Menu from "@/components/Menu";
 import { Stack } from "expo-router";
-import { StyleSheet, View } from "react-native";
 
 export default function RootLayout() {
-  return (
-    <View style={styles.container}>
-      <Stack />
-      <Menu />
-    </View>
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
