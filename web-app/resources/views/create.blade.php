@@ -97,7 +97,7 @@
 
                     el: editorElement,
 
-                    height: '250px',
+                    height: '600px',
 
                     initialEditType: 'wysiwyg',
 
