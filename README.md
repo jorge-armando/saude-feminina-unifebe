@@ -7,11 +7,11 @@ Aplicativo mobile voltado ao cuidado, acompanhamento e bem-estar feminino
 </h3>
 
 <p align="center">
-Projeto desenvolvido na curricularização da extensão do curso de sistemas de informação em parceria com o curso de Medicina.
+Projeto desenvolvido na curricularização da extensão do curso de Sistemas de Informação em parceria com o curso de Medicina.
 </p>
 
 <p align="center">
-Alunos: Hercilio Zanca Neto, João Gabriel Costa, Jorge Armando e Thiago Oliveira.
+Desenvolvido por: Hercilio Zanca Neto, João Gabriel Costa, Jorge Armando e Thiago Oliveira.
 </p>
 
 <p align="center">
