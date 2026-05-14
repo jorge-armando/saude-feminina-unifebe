@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { Bell, X, Check } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -21,32 +22,58 @@ interface NotificationItem {
 }
 
 export default function NotificationsScreen() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: '1',
-      title: 'Lembrete de Exame',
-      description: 'Papanicolau agendado para 22 de Março às 14:00',
-      time: 'Há 2 horas',
-      icon: '🏥',
-      read: false,
-    },
-    {
-      id: '2',
-      title: 'Novo Artigo',
-      description: 'Leia sobre "O que é a fase lútea?"',
-      time: 'Há 5 horas',
-      icon: '📚',
-      read: false,
-    },
-    {
-      id: '3',
-      title: 'Próxima Menstruação',
-      description: 'Sua menstruação deve começar em 16 dias',
-      time: 'Ontem',
-      icon: '🌸',
-      read: true,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNotifications = async (): Promise<NotificationItem[]> => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    return [
+      {
+        id: '1',
+        title: 'Lembrete de Exame',
+        description: 'Papanicolau agendado para 22 de Março às 14:00',
+        time: 'Há 2 horas',
+        icon: '🏥',
+        read: false,
+      },
+      {
+        id: '2',
+        title: 'Novo Artigo',
+        description: 'Leia sobre "O que é a fase lútea?"',
+        time: 'Há 5 horas',
+        icon: '📚',
+        read: false,
+      },
+      {
+        id: '3',
+        title: 'Próxima Menstruação',
+        description: 'Sua menstruação deve começar em 16 dias',
+        time: 'Ontem',
+        icon: '🌸',
+        read: true,
+      },
+    ];
+  };
+
+  const loadNotifications = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchNotifications();
+      setNotifications(data);
+    } catch (err) {
+      setError('Não foi possível carregar as notificações.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   useNavigationState('/user/notifications');
 
@@ -60,6 +87,19 @@ export default function NotificationsScreen() {
       }))
     );
   };
+
+  const toggleNotificationRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              read: true,
+            }
+          : item
+      )
+    );
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -78,9 +118,21 @@ export default function NotificationsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity onPress={() => router.back()}>
-          <X color="#4b5563" size={24} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={loadNotifications}
+            disabled={loading}
+          >
+            <Text style={styles.refreshText}>
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.back()}>
+            <X color="#4b5563" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Notifications */}
@@ -88,39 +140,51 @@ export default function NotificationsScreen() {
         contentContainerStyle={styles.notificationsContainer}
         showsVerticalScrollIndicator={false}
       >
-        {notifications.map((item) => (
-          <View
-            key={item.id}
-            style={[
-              styles.notificationCard,
-              item.read && styles.notificationRead,
-            ]}
-          >
-            <View style={styles.notificationLeft}>
-              <View style={styles.notificationIcon}>
-                <Text style={styles.notificationEmoji}>
-                  {item.icon}
-                </Text>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text style={styles.notificationTitle}>
-                  {item.title}
-                </Text>
-
-                <Text style={styles.notificationDescription}>
-                  {item.description}
-                </Text>
-
-                <Text style={styles.notificationTime}>
-                  {item.time}
-                </Text>
-              </View>
-            </View>
-
-            {!item.read && <View style={styles.unreadDot} />}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ff2d7a" />
+            <Text style={styles.loadingText}>Carregando notificações...</Text>
           </View>
-        ))}
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadNotifications}>
+              <Text style={styles.retryText}>Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        ) : notifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Nenhuma notificação encontrada.</Text>
+          </View>
+        ) : (
+          notifications.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.notificationCard,
+                item.read && styles.notificationRead,
+              ]}
+              onPress={() => toggleNotificationRead(item.id)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.notificationLeft}>
+                <View style={styles.notificationIcon}>
+                  <Text style={styles.notificationEmoji}>{item.icon}</Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notificationTitle}>{item.title}</Text>
+
+                  <Text style={styles.notificationDescription}>{item.description}</Text>
+
+                  <Text style={styles.notificationTime}>{item.time}</Text>
+                </View>
+              </View>
+
+              {!item.read && <View style={styles.unreadDot} />}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
 
       {/* Footer */}
@@ -277,6 +341,71 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff2d7a',
     marginLeft: 10,
     marginTop: 4,
+  },
+
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  refreshButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#fee2e9',
+  },
+
+  refreshText: {
+    color: '#be123c',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  loadingContainer: {
+    paddingTop: 40,
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    marginTop: 14,
+    fontSize: 15,
+    color: '#6b7280',
+  },
+
+  errorContainer: {
+    paddingTop: 40,
+    alignItems: 'center',
+  },
+
+  errorText: {
+    fontSize: 15,
+    color: '#b91c1c',
+    textAlign: 'center',
+    marginBottom: 14,
+    lineHeight: 22,
+  },
+
+  retryButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#ff2d7a',
+  },
+
+  retryText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  emptyContainer: {
+    paddingTop: 40,
+    alignItems: 'center',
+  },
+
+  emptyText: {
+    color: '#6b7280',
+    fontSize: 15,
   },
 
   footer: {
