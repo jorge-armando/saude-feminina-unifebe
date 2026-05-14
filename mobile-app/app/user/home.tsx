@@ -419,9 +419,15 @@ export default function HomePage() {
                 <View style={styles.reminderEmojiBox}>
                   <Text style={styles.reminderEmoji}>{item.emoji}</Text>
                 </View>
-                <View>
+                <View style={styles.reminderTextWrapper}>
                   <Text style={styles.reminderType}>{item.type}</Text>
-                  <Text style={styles.reminderTitle}>{item.title}</Text>
+                  <Text
+                    style={styles.reminderTitle}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                  >
+                    {item.title}
+                  </Text>
                   <Text style={styles.reminderDate}>🕒 {item.date}</Text>
                 </View>
               </View>
@@ -912,6 +918,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+  },
+
+  reminderTextWrapper: {
+    flex: 1,
+    flexShrink: 1,
   },
 
   reminderEmojiBox: {
