@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,73 +12,42 @@ import {
   View,
 } from "react-native";
 import { useNavigationState } from "../../hooks/useNavigationState";
+import { useContents } from "../../hooks/useContents";
 
 export default function ContentPage() {
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState("Todos");
+  const [searchQuery, setSearchQuery] = useState("");
 
+  const { data, isLoading, error, refetch } = useContents();
   useNavigationState('/user/content');
 
-  const filters = ["Todos", "Ciclo", "Saúde", "Alimentação"];
+  const filters = ["Todos", "Ciclo", "Saúde", "Bem-estar", "Prevenção"];
 
-  const articles = [
-    {
-      title: "O que é a fase lútea e como ela afeta você",
-      time: "5 min",
-      category: "Ciclo",
-      tag: "Hormônios",
-      icon: "bookmark-outline",
-    },
-    {
-      title: "Alimentos que ajudam com a TPM",
-      time: "6 min",
-      category: "Alimentação",
-      tag: "TPM",
-      icon: "bookmark",
-    },
-    {
-      title: "Yoga para aliviar cólicas menstruais",
-      time: "4 min",
-      category: "Exercício",
-      tag: "Bem-estar",
-      icon: "bookmark-outline",
-    },
-    {
-      title: "Como identificar a ovulação",
-      time: "7 min",
-      category: "Ciclo",
-      tag: "Fertilidade",
-      icon: "bookmark-outline",
-    },
-    {
-      title: "Lidando com mudanças de humor no ciclo",
-      time: "5 min",
-      category: "Emocional",
-      tag: "TPM",
-      icon: "bookmark",
-    },
-    {
-      title: "Suplementos importantes para a saúde feminina",
-      time: "8 min",
-      category: "Saúde",
-      tag: "Nutrição",
-      icon: "bookmark-outline",
-    },
-    {
-      title: "Exercícios para cada fase do ciclo",
-      time: "10 min",
-      category: "Exercício",
-      tag: "Ciclo",
-      icon: "bookmark-outline",
-    },
-    {
-      title: "Chás e remédios naturais para cólicas",
-      time: "4 min",
-      category: "Bem-estar",
-      tag: "Natural",
-      icon: "bookmark-outline",
-    },
-  ];
+  // Filtra conteúdos baseado no filtro selecionado e busca
+  const filteredContents = data?.data?.filter((content) => {
+    const matchesSearch =
+      searchQuery.length === 0 ||
+      content.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      content.tags.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesFilter =
+      selectedFilter === "Todos" ||
+      content.tags.toLowerCase().includes(selectedFilter.toLowerCase());
+
+    return matchesSearch && matchesFilter;
+  });
+
+  // Pega o primeiro conteúdo como destaque
+  const featuredContent = filteredContents?.[0];
+
+  // Remove o destaque da lista de artigos
+  const articles = filteredContents?.slice(1) || [];
+
+  // Função para extrair a primeira tag
+  const getFirstTag = (tags: string) => {
+    return tags.split(",")[0] || "Saúde";
+  };
 
   return (
     <LinearGradient
@@ -100,6 +70,8 @@ export default function ContentPage() {
             style={styles.searchInput}
             placeholder="Buscar artigos..."
             placeholderTextColor="#9ca3af"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
 
@@ -130,95 +102,132 @@ export default function ContentPage() {
           ))}
         </ScrollView>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Em Destaque ✨</Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => router.push("/user/content-detail" as any)}
-        >
-          <LinearGradient
-            colors={["#a855f7", "#ec4899", "#fb7185"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.featuredCard}
-          >
-            <View style={styles.featuredBadge}>
-              <Text style={styles.featuredBadgeText}>Destaque da Semana</Text>
-            </View>
-
-            <Text style={styles.featuredTitle}>
-              Entendendo as fases do seu ciclo menstrual
-            </Text>
-
-            <Text style={styles.featuredDescription}>
-              Aprenda como cada fase do ciclo afeta seu corpo, mente e energia
-            </Text>
-
-            <View style={styles.readTimeRow}>
-              <Ionicons name="time-outline" size={14} color="#fff" />
-              <Text style={styles.readTime}>8 min de leitura</Text>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Todos os Artigos 📚</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>Ver salvos</Text>
-          </TouchableOpacity>
-        </View>
-
-        {articles.map((article, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.articleCard}
-            onPress={() => {
-              if (index === 0) {
-                router.push("/user/content-detail" as any);
-              }
-            }}
-          >
-            <View style={styles.articleContent}>
-              <View style={styles.articleInfo}>
-                <Text style={styles.articleTitle}>{article.title}</Text>
-
-                <View style={styles.articleMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={13} color="#9ca3af" />
-                    <Text style={styles.metaText}>{article.time}</Text>
-                  </View>
-
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>{article.category}</Text>
-                  </View>
-
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>{article.tag}</Text>
-                  </View>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ec4899" />
+            <Text style={styles.loadingText}>Carregando conteúdos...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={48} color="#ef4444" />
+            <Text style={styles.errorText}>Erro ao carregar conteúdos</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+              <Text style={styles.retryButtonText}>Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {featuredContent && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Em Destaque ✨</Text>
                 </View>
-              </View>
 
-              <View style={styles.articleActions}>
-                <TouchableOpacity style={styles.saveIcon}>
-                  <Ionicons
-                    name={article.icon as any}
-                    size={18}
-                    color="#ec4899"
-                  />
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push(`/user/content-detail?id=${featuredContent.id}` as any)
+                  }
+                >
+                  <LinearGradient
+                    colors={["#a855f7", "#ec4899", "#fb7185"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.featuredCard}
+                  >
+                    <View style={styles.featuredBadge}>
+                      <Text style={styles.featuredBadgeText}>
+                        Destaque da Semana
+                      </Text>
+                    </View>
+
+                    <Text style={styles.featuredTitle}>
+                      {featuredContent.title}
+                    </Text>
+
+                    <Text
+                      style={styles.featuredDescription}
+                      numberOfLines={2}
+                    >
+                      {featuredContent.content.substring(0, 100)}...
+                    </Text>
+
+                    <View style={styles.readTimeRow}>
+                      <Ionicons name="time-outline" size={14} color="#fff" />
+                      <Text style={styles.readTime}>
+                        {featuredContent.reading_time} min de leitura
+                      </Text>
+                    </View>
+                  </LinearGradient>
                 </TouchableOpacity>
+              </>
+            )}
 
-                <View style={styles.arrowButton}>
-                  <Ionicons name="chevron-forward" size={18} color="#ec4899" />
-                </View>
-              </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {filteredContents && filteredContents.length > 0
+                  ? `Todos os Artigos 📚 (${filteredContents.length})`
+                  : "Nenhum artigo encontrado"}
+              </Text>
             </View>
-          </TouchableOpacity>
-        ))}
 
-        <TouchableOpacity style={styles.loadMoreButton}>
-          <Text style={styles.loadMoreText}>Carregar mais artigos</Text>
-        </TouchableOpacity>
+            {articles.map((article) => (
+              <TouchableOpacity
+                key={article.id}
+                style={styles.articleCard}
+                onPress={() =>
+                  router.push(`/user/content-detail?id=${article.id}` as any)
+                }
+              >
+                <View style={styles.articleContent}>
+                  <View style={styles.articleInfo}>
+                    <Text style={styles.articleTitle}>{article.title}</Text>
+
+                    <View style={styles.articleMeta}>
+                      <View style={styles.metaItem}>
+                        <Ionicons
+                          name="time-outline"
+                          size={13}
+                          color="#9ca3af"
+                        />
+                        <Text style={styles.metaText}>
+                          {article.reading_time} min
+                        </Text>
+                      </View>
+
+                      {article.tags.split(",").slice(0, 2).map((tag, idx) => (
+                        <View key={idx} style={styles.tag}>
+                          <Text style={styles.tagText}>{tag.trim()}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.articleActions}>
+                    <View style={styles.arrowButton}>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color="#ec4899"
+                      />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {filteredContents && filteredContents.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
+                <Text style={styles.emptyText}>
+                  Nenhum conteúdo encontrado
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  Tente ajustar seus filtros ou busca
+                </Text>
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -236,7 +245,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 55,
     paddingHorizontal: 22,
-    paddingBottom: 110,
+    paddingBottom: 20,
   },
 
   header: {
@@ -469,5 +478,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: "#374151",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+
+  loadingText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 12,
+  },
+
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+
+  errorText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 12,
+    marginBottom: 20,
+  },
+
+  retryButton: {
+    backgroundColor: "#ec4899",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 18,
+  },
+
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+
+  emptyText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 16,
+  },
+
+  emptySubtext: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginTop: 6,
   },
 });

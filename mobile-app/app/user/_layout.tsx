@@ -5,7 +5,9 @@ import { StyleSheet, View } from "react-native";
 export default function RootLayout() {
   return (
     <View style={styles.container}>
-      <Stack />
+      <View style={styles.content}>
+        <Stack />
+      </View>
       <Menu />
     </View>
   );
@@ -14,5 +16,9 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingBottom: 90,
   },
 });

@@ -26,6 +26,7 @@ class ContentController extends Controller
     public function apiIndex()
     {
         $search = request('search');
+        $tags = request('tags');
         $perPage = min(request('per_page', 15), 50);
 
         $contents = Content::when($search, function ($query, $search) {
@@ -33,10 +34,18 @@ class ContentController extends Controller
                 ->orWhere('tags', 'like', "%{$search}%")
                 ->orWhere('content', 'like', "%{$search}%");
         })
+            ->when($tags, function ($query, $tags) {
+                return $query->where('tags', 'like', "%{$tags}%");
+            })
             ->latest()
             ->paginate($perPage);
 
         return ContentResource::collection($contents);
+    }
+
+    public function show(Content $content)
+    {
+        return new ContentResource($content);
     }
 
     public function create()

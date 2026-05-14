@@ -1,111 +1,151 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRef } from "react";
 import {
-  Image,
-  ScrollView,
+  ActivityIndicator,
+  Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useNavigationState } from "../../hooks/useNavigationState";
-
-const conteúdos = [
-  {
-    id: "1",
-    titulo: "Ciclo menstrual",
-    categoria: "Saúde feminina",
-    tempo: "5 min de leitura",
-    imagem:
-      "https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?q=80&w=1200&auto=format&fit=crop",
-    texto:
-      "O ciclo menstrual é um processo natural do corpo feminino. Ele envolve mudanças hormonais que preparam o corpo para uma possível gravidez. A duração média do ciclo é de 28 dias, mas pode variar de pessoa para pessoa.",
-  },
-  {
-    id: "2",
-    titulo: "Saúde íntima",
-    categoria: "Cuidados",
-    tempo: "4 min de leitura",
-    imagem:
-      "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?q=80&w=1200&auto=format&fit=crop",
-    texto:
-      "A saúde íntima envolve cuidados diários com higiene, prevenção de infecções e atenção aos sinais do corpo. Consultas regulares com profissionais da saúde são importantes para prevenção e orientação correta.",
-  },
-  {
-    id: "3",
-    titulo: "Prevenção e exames",
-    categoria: "Prevenção",
-    tempo: "6 min de leitura",
-    imagem:
-      "https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=1200&auto=format&fit=crop",
-    texto:
-      "A prevenção é essencial para manter a saúde em dia. Exames periódicos ajudam a identificar alterações precocemente e aumentam as chances de tratamento adequado quando necessário.",
-  },
-];
+import Markdown from "react-native-markdown-renderer";
+import { useContent } from "../../hooks/useContents";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigationState } from "@/hooks/useNavigationState";
 
 export default function ContentDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
 
-  const conteudo =
-    conteúdos.find((item) => item.id === String(id)) || conteúdos[0];
+  const contentId = Number(id);
+  const { data, isLoading, error, refetch } = useContent(contentId);
+
+  const content = data?.data;
+
+  // Pega a primeira tag como categoria
+  const category = content?.tags.split(",")[0]?.trim() || "Saúde";
+
+  // Animated value para o scroll
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Calcula a opacidade do título baseado no scroll
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  // Calcula a altura do header baseado no scroll
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [90, 66],
+    extrapolate: "clamp",
+  });
+
+  // Calcula a elevação/shadow do header
+  const headerElevation = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, 8],
+    extrapolate: "clamp",
+  });
+
+  // Calcula a opacidade do background do header
+  const headerBackgroundOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, 0.95],
+    extrapolate: "clamp",
+  });
 
   useNavigationState('/user/content-detail');
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: conteudo.imagem }} style={styles.image} />
+      <LinearGradient
+        colors={["#fce7f3", "#fdf2f8", "#f3e8ff"]}
+        style={styles.gradient}
+      >
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              height: headerHeight,
+              elevation: headerElevation,
+              shadowOpacity: headerElevation.interpolate({
+                inputRange: [0, 8],
+                outputRange: [0, 0.15],
+              }),
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.headerBackground,
+              { opacity: headerBackgroundOpacity },
+            ]}
+          />
 
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.content}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{conteudo.categoria}</Text>
-          </View>
+          <Animated.Text style={[styles.headerTitle, { opacity: titleOpacity }]}>
+            Conteúdo
+          </Animated.Text>
 
-          <Text style={styles.title}>{conteudo.titulo}</Text>
+          <View style={styles.headerSpacer} />
+        </Animated.View>
 
-          <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={18} color="#8b5f7a" />
-            <Text style={styles.infoText}>{conteudo.tempo}</Text>
-          </View>
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#ec4899" />
+              <Text style={styles.loadingText}>Carregando conteúdo...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={64} color="#ef4444" />
+              <Text style={styles.errorText}>Erro ao carregar conteúdo</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={() => refetch()}
+              >
+                <Text style={styles.retryButtonText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : content ? (
+            <View style={styles.content}>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{category}</Text>
+              </View>
 
-          <Text style={styles.paragraph}>{conteudo.texto}</Text>
+              <Text style={styles.title}>{content.title}</Text>
 
-          <Text style={styles.sectionTitle}>Por que isso é importante?</Text>
+              <View style={styles.infoRow}>
+                <Ionicons name="time-outline" size={18} color="#ec4899" />
+                <Text style={styles.infoText}>
+                  {content.reading_time} min de leitura
+                </Text>
+              </View>
 
-          <Text style={styles.paragraph}>
-            Entender esse assunto ajuda a mulher a reconhecer melhor o próprio
-            corpo, identificar sinais de alerta e buscar orientação profissional
-            quando necessário.
-          </Text>
-
-          <Text style={styles.sectionTitle}>Cuidados recomendados</Text>
-
-          <View style={styles.card}>
-            <Text style={styles.cardText}>• Manter acompanhamento médico.</Text>
-            <Text style={styles.cardText}>• Observar alterações no corpo.</Text>
-            <Text style={styles.cardText}>
-              • Evitar automedicação sem orientação.
-            </Text>
-            <Text style={styles.cardText}>
-              • Buscar informação em fontes confiáveis.
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Marcar como lido</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+              <View style={styles.markdownContainer}>
+                <Markdown style={markdownStyles}>{content.content}</Markdown>
+              </View>
+            </View>
+          ) : null}
+        </Animated.ScrollView>
+      </LinearGradient>
     </View>
   );
 }
@@ -113,110 +153,218 @@ export default function ContentDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff7fb",
   },
-  imageContainer: {
-    width: "100%",
-    height: 260,
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    overflow: "hidden",
     position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
   },
-  image: {
-    width: "100%",
-    height: "100%",
+  headerBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#fff",
+    zIndex: -1,
   },
   backButton: {
-    position: "absolute",
-    top: 48,
-    left: 20,
-    backgroundColor: "#ffffff",
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: "#ec4899",
     alignItems: "center",
     justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowColor: "#ec4899",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  headerSpacer: {
+    width: 44,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   content: {
-    marginTop: -28,
-    backgroundColor: "#fff7fb",
+    backgroundColor: "#fff",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 24,
+    marginTop: 8,
+    minHeight: 600,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   categoryBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#f4d7e8",
+    backgroundColor: "#fce7f3",
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
     marginBottom: 14,
   },
   categoryText: {
-    color: "#8b2f61",
+    color: "#ec4899",
     fontSize: 13,
     fontWeight: "700",
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
-    color: "#30242c",
+    color: "#111827",
     marginBottom: 12,
+    lineHeight: 34,
   },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 22,
+    marginBottom: 24,
     gap: 6,
   },
   infoText: {
     fontSize: 14,
-    color: "#8b5f7a",
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+  markdownContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 100,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 100,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: "#ec4899",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 18,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+});
+
+const markdownStyles = {
+  body: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#374151",
+  },
+  heading2: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  heading3: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  heading4: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 16,
+    marginBottom: 8,
   },
   paragraph: {
     fontSize: 16,
-    color: "#4f3f49",
-    lineHeight: 25,
-    marginBottom: 20,
+    lineHeight: 26,
+    color: "#374151",
+    marginBottom: 14,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#30242c",
-    marginBottom: 12,
-    marginTop: 6,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 26,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-  },
-  cardText: {
-    fontSize: 15,
-    color: "#4f3f49",
-    marginBottom: 8,
-    lineHeight: 22,
-  },
-  button: {
-    backgroundColor: "#c64f8a",
-    height: 54,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 30,
-  },
-  buttonText: {
-    color: "#ffffff",
+  listItem: {
     fontSize: 16,
-    fontWeight: "800",
+    lineHeight: 26,
+    color: "#374151",
+    marginBottom: 8,
   },
-});
+  bullet_list: {
+    marginBottom: 16,
+  },
+  ordered_list: {
+    marginBottom: 16,
+  },
+  strong: {
+    fontWeight: "700",
+    color: "#111827",
+  },
+  em: {
+    fontStyle: "italic",
+  },
+  blockquote: {
+    backgroundColor: "#fef3c7",
+    borderLeftWidth: 4,
+    borderLeftColor: "#f59e0b",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginVertical: 12,
+    borderRadius: 8,
+  },
+  code_inline: {
+    backgroundColor: "#f3f4f6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontSize: 14,
+    fontFamily: "monospace",
+  },
+  fence: {
+    backgroundColor: "#f3f4f6",
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 12,
+  },
+  hr: {
+    backgroundColor: "#e5e7eb",
+    height: 1,
+    marginVertical: 20,
+  },
+};
