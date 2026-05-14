@@ -1,23 +1,19 @@
 import Menu from "@/components/Menu";
 import { Stack } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Stack />
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Stack screenOptions={{ headerShown: false }} />
       <Menu />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  content: {
     flex: 1,
     paddingBottom: 90,
   },
