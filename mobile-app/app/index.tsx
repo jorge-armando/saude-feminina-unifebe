@@ -19,29 +19,6 @@ export default function Index() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function checkWelcome() {
-      const hasCompletedWelcome = await AsyncStorage.getItem(
-        "hasCompletedWelcome",
-      );
-
-      if (hasCompletedWelcome === "true") {
-        // Verificar se há uma tela salva para restaurar
-        const savedScreen = await AsyncStorage.getItem("currentScreen");
-        if (savedScreen) {
-          router.replace(savedScreen as any);
-        } else {
-          router.replace("/user/home");
-        }
-        return;
-      }
-
-      setLoading(false);
-    }
-
-    checkWelcome();
-  }, []);
-
   async function handleSubmit() {
     if (!name.trim()) return;
 
@@ -49,17 +26,6 @@ export default function Index() {
     await AsyncStorage.setItem("hasCompletedWelcome", "true");
 
     router.replace("/user/home");
-  }
-
-  if (loading) {
-    return (
-      <LinearGradient
-        colors={["#ffe4e6", "#fce7f3", "#f3e8ff"]}
-        style={styles.loadingContainer}
-      >
-        <ActivityIndicator size="large" color="#ec4899" />
-      </LinearGradient>
-    );
   }
 
   return (
@@ -95,7 +61,6 @@ export default function Index() {
             placeholder="Digite seu nome"
             placeholderTextColor="#9ca3af"
             style={styles.input}
-            autoFocus
           />
 
           <TouchableOpacity
