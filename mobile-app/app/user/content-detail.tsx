@@ -29,35 +29,7 @@ export default function ContentDetailScreen() {
   // Animated value para o scroll
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Calcula a opacidade do título baseado no scroll
-  const titleOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Calcula a altura do header baseado no scroll
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [90, 66],
-    extrapolate: "clamp",
-  });
-
-  // Calcula a elevação/shadow do header
-  const headerElevation = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, 8],
-    extrapolate: "clamp",
-  });
-
-  // Calcula a opacidade do background do header
-  const headerBackgroundOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, 0.95],
-    extrapolate: "clamp",
-  });
-
-  useNavigationState('/user/content-detail');
+  useNavigationState("/user/content-detail");
 
   return (
     <View style={styles.container}>
@@ -65,26 +37,7 @@ export default function ContentDetailScreen() {
         colors={["#fce7f3", "#fdf2f8", "#f3e8ff"]}
         style={styles.gradient}
       >
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              height: headerHeight,
-              elevation: headerElevation,
-              shadowOpacity: headerElevation.interpolate({
-                inputRange: [0, 8],
-                outputRange: [0, 0.15],
-              }),
-            },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.headerBackground,
-              { opacity: headerBackgroundOpacity },
-            ]}
-          />
-
+        <Animated.View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
@@ -92,9 +45,7 @@ export default function ContentDetailScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
-          <Animated.Text style={[styles.headerTitle, { opacity: titleOpacity }]}>
-            Conteúdo
-          </Animated.Text>
+          <Animated.Text style={styles.headerTitle}>Conteúdo</Animated.Text>
 
           <View style={styles.headerSpacer} />
         </Animated.View>
@@ -104,7 +55,7 @@ export default function ContentDetailScreen() {
           contentContainerStyle={styles.scrollContent}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
+            { useNativeDriver: false },
           )}
           scrollEventThrottle={16}
         >
@@ -161,23 +112,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 50,
+    paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    overflow: "hidden",
     position: "relative",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-  },
-  headerBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: "#fff",
-    zIndex: -1,
+    elevation: 6,
+    zIndex: 10,
+    height: 80
   },
   backButton: {
     width: 44,
@@ -205,16 +151,12 @@ const styles = StyleSheet.create({
   },
   content: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
     padding: 24,
-    marginTop: 8,
     minHeight: 600,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 4,
   },
   categoryBadge: {
     alignSelf: "flex-start",
