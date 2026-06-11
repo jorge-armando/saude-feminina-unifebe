@@ -19,6 +19,39 @@ export default function Index() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    async function checkExistingUser() {
+      try {
+        const hasCompleted = await AsyncStorage.getItem("hasCompletedWelcome");
+        const savedName = await AsyncStorage.getItem("userName");
+
+        if (hasCompleted === "true" && savedName) {
+          router.replace("/user/home");
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking existing user:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkExistingUser();
+  }, []);
+
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={["#ffe4e6", "#fce7f3", "#f3e8ff"]}
+        style={styles.container}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ec4899" />
+        </View>
+      </LinearGradient>
+    );
+  }
+
   async function handleSubmit() {
     if (!name.trim()) return;
 

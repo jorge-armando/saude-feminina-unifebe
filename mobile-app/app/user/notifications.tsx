@@ -8,8 +8,9 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { Bell, X, Check } from 'lucide-react-native';
+import { Bell, X, Check, ChevronDown } from 'lucide-react-native';
 import { router } from 'expo-router';
+import Animated, { FadeInDown, FadeOutUp, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useNavigationState } from '../../hooks/useNavigationState';
 
 interface NotificationItem {
@@ -25,6 +26,26 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    if (!showSwipeHint) return;
+
+    translateY.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 600 }),
+        withTiming(8, { duration: 600 })
+      ),
+      -1,
+      true
+    );
+  }, [showSwipeHint, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   const fetchNotifications = async (): Promise<NotificationItem[]> => {
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -80,6 +101,7 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllAsRead = () => {
+    setShowSwipeHint(false);
     setNotifications((prev) =>
       prev.map((item) => ({
         ...item,
@@ -89,6 +111,7 @@ export default function NotificationsScreen() {
   };
 
   const toggleNotificationRead = useCallback((id: string) => {
+    setShowSwipeHint(false);
     setNotifications((prev) =>
       prev.map((item) =>
         item.id === id
@@ -134,6 +157,18 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Swipe Hint */}
+      {showSwipeHint && notifications.length > 0 && !loading && (
+        <Animated.View
+          entering={FadeInDown.delay(800)}
+          exiting={FadeOutUp}
+          style={[styles.swipeHint, animatedStyle]}
+        >
+          <ChevronDown color="#ec4899" size={20} />
+          <Text style={styles.swipeHintText}>Deslize para explorar</Text>
+        </Animated.View>
+      )}
 
       {/* Notifications */}
       <ScrollView
@@ -255,7 +290,7 @@ const styles = StyleSheet.create({
 
   notificationsContainer: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 220,
   },
 
   notificationCard: {
@@ -409,15 +444,16 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    padding: 16,
-    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingBottom: 90,
+    backgroundColor: 'transparent',
   },
 
   readAllButton: {
     height: 56,
     borderRadius: 18,
+    marginTop: 16,
+    marginBottom: 32,
 
     backgroundColor: '#ff2d7a',
 
@@ -432,5 +468,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    borderRadius: 16,
+    backgroundColor: '#fce7f3',
+  },
+
+  swipeHintText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ec4899',
   },
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,9 +24,29 @@ interface NoteItem {
   emoji: string;
 }
 
+const NOTES_STORAGE_KEY = 'calendarNotes';
+
+const defaultNotes: NoteItem[] = [
+  {
+    id: '1',
+    date: '10 de Março',
+    symptoms: ['Energia alta', 'Ótimo humor'],
+    note: 'Me senti muito bem hoje!',
+    emoji: '⚡',
+  },
+  {
+    id: '2',
+    date: '7 de Março',
+    symptoms: ['Cansaço leve'],
+    note: 'Dia tranquilo, precisei descansar mais',
+    emoji: '😴',
+  },
+];
+
 export default function CalendarPage() {
   const [currentMonth] = useState('Março 2026');
   const [currentDay] = useState(12);
+  const [isReady, setIsReady] = useState(false);
 
   const [showNoteModal, setShowNoteModal] = useState(false);
 
@@ -39,6 +62,8 @@ export default function CalendarPage() {
 
   const [selectedEmoji, setSelectedEmoji] =
     useState('💖');
+
+  const [notes, setNotes] = useState<NoteItem[]>([]);
 
   useNavigationState('/user/calendar');
 
@@ -76,22 +101,32 @@ export default function CalendarPage() {
     { icon: '⚡', label: 'Energia' },
   ];
 
-  const [notes, setNotes] = useState<NoteItem[]>([
-    {
-      id: '1',
-      date: '10 de Março',
-      symptoms: ['Energia alta', 'Ótimo humor'],
-      note: 'Me senti muito bem hoje!',
-      emoji: '⚡',
-    },
-    {
-      id: '2',
-      date: '7 de Março',
-      symptoms: ['Cansaço leve'],
-      note: 'Dia tranquilo, precisei descansar mais',
-      emoji: '😴',
-    },
-  ]);
+  useEffect(() => {
+    async function loadNotes() {
+      try {
+        const storedNotes = await AsyncStorage.getItem(NOTES_STORAGE_KEY);
+        if (storedNotes) {
+          setNotes(JSON.parse(storedNotes));
+        } else {
+          setNotes(defaultNotes);
+        }
+      } catch (error) {
+        setNotes(defaultNotes);
+      } finally {
+        setIsReady(true);
+      }
+    }
+
+    loadNotes();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    AsyncStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+  }, [notes, isReady]);
 
   const toggleSymptom = (label: string) => {
     setSelectedSymptoms((prev) =>
@@ -401,7 +436,10 @@ export default function CalendarPage() {
         animationType="slide"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -515,7 +553,7 @@ export default function CalendarPage() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* MODAL EXCLUIR */}

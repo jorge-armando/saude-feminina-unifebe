@@ -10,6 +10,8 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plus, X, Calendar, Clock, Trash2, Edit2, Check } from 'lucide-react-native';
@@ -314,11 +316,15 @@ export default function RemindersPage() {
       )}
 
       <Modal visible={showModal} animationType="fade" transparent>
-        <Pressable style={styles.modalOverlay} onPress={closeModal}>
-          <View style={styles.modalBackground} />
-        </Pressable>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <View style={styles.modalBackground} />
+          </Pressable>
 
-        <View style={styles.modalContainer}>
+          <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{editingId ? 'Editar Lembrete' : 'Novo Lembrete'}</Text>
             <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
@@ -427,7 +433,8 @@ export default function RemindersPage() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
