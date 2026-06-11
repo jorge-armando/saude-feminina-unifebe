@@ -13,13 +13,19 @@
                 <p>Minha Saúde Feminina</p>
             </div>
 
-            <form method="POST" action="{{ route('sair') }}">
-                @csrf
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <a href="{{ asset('app/android/saudefeminina.apk') }}" download="SaudeFeminina.apk" class="btn-new">
+                    Baixar App
+                </a>
 
-                <button type="submit" class="btn-logout">
-                    Sair
-                </button>
-            </form>
+                <form method="POST" action="{{ route('sair') }}">
+                    @csrf
+
+                    <button type="submit" class="btn-logout">
+                        Sair
+                    </button>
+                </form>
+            </div>
 
         </div>
 
