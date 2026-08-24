@@ -16,33 +16,27 @@ import { useContents } from "../../hooks/useContents";
 
 export default function ContentPage() {
   const router = useRouter();
-  const [selectedFilter, setSelectedFilter] = useState("Todos");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data, isLoading, error, refetch } = useContents();
   useNavigationState('/user/content');
 
-  const filters = ["Todos", "Ciclo", "Saúde", "Bem-estar", "Prevenção"];
-
-  // Filtra conteúdos baseado no filtro selecionado e busca
+  // Filtra conteúdos baseado na busca
   const filteredContents = data?.data?.filter((content) => {
-    const matchesSearch =
+    return (
       searchQuery.length === 0 ||
       content.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      content.tags.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesFilter =
-      selectedFilter === "Todos" ||
-      content.tags.toLowerCase().includes(selectedFilter.toLowerCase());
-
-    return matchesSearch && matchesFilter;
+      content.tags.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
-  // Pega o primeiro conteúdo como destaque
-  const featuredContent = filteredContents?.[0];
+  // Pega o primeiro conteúdo como destaque (apenas quando não há busca)
+  const featuredContent = searchQuery.length === 0 ? filteredContents?.[0] : undefined;
 
   // Remove o destaque da lista de artigos
-  const articles = filteredContents?.slice(1) || [];
+  const articles = searchQuery.length === 0
+    ? filteredContents?.slice(1) || []
+    : filteredContents || [];
 
   // Função para extrair a primeira tag
   const getFirstTag = (tags: string) => {
@@ -74,33 +68,6 @@ export default function ContentPage() {
             onChangeText={setSearchQuery}
           />
         </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[
-                styles.filterButton,
-                selectedFilter === filter && styles.filterButtonActive,
-              ]}
-              onPress={() => setSelectedFilter(filter)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedFilter === filter && styles.filterTextActive,
-                ]}
-              >
-                {filter === "Todos" ? "✨ " : ""}
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -279,32 +246,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: "#111827",
-  },
-
-  filters: {
-    gap: 8,
-    paddingBottom: 20,
-  },
-
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-  },
-
-  filterButtonActive: {
-    backgroundColor: "#ec4899",
-  },
-
-  filterText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6b7280",
-  },
-
-  filterTextActive: {
-    color: "#fff",
   },
 
   sectionHeader: {
