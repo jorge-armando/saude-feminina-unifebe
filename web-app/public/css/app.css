@@ -340,13 +340,23 @@ body {
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 14px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .desktop-table {
     width: 100%;
+    min-width: 980px;
+    table-layout: fixed;
     border-collapse: collapse;
 }
+
+.desktop-table .column-order { width: 48px; }
+.desktop-table .column-title { width: 22%; }
+.desktop-table .column-media { width: 120px; }
+.desktop-table .column-reading { width: 90px; }
+.desktop-table .column-date { width: 112px; }
+.desktop-table .column-actions { width: 190px; }
 
 .desktop-table thead {
     background: #f9fafb;
@@ -366,6 +376,8 @@ body {
     border-top: 1px solid #f1f5f9;
     font-size: 14px;
     color: #111827;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
 }
 
 .desktop-table tr[draggable="true"] {
@@ -442,8 +454,14 @@ body {
 }
 
 .content-thumbnail {
-    width: 58px;
-    height: 38px;
+    display: block;
+    width: 58px !important;
+    min-width: 58px;
+    max-width: 58px !important;
+    height: 38px !important;
+    min-height: 38px;
+    max-height: 38px !important;
+    flex: 0 0 58px;
     border-radius: 7px;
     background: #f1f5f9;
     object-fit: cover;
@@ -475,7 +493,10 @@ body {
 .actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 154px;
+    white-space: nowrap;
 }
 
 .actions form {

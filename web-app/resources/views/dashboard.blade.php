@@ -53,6 +53,15 @@
 
             <div class="content-card">
                 <table class="desktop-table">
+                    <colgroup>
+                        <col class="column-order">
+                        <col class="column-title">
+                        <col class="column-media">
+                        <col class="column-tags">
+                        <col class="column-reading">
+                        <col class="column-date">
+                        <col class="column-actions">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th aria-label="Ordenar"></th>
@@ -103,25 +112,27 @@
                                 <td>{{ $content->reading_time }} min</td>
                                 <td>{{ $content->created_at->format('d/m/Y') }}</td>
 
-                                <td class="actions">
-                                    @if ($canReorder)
-                                        <button type="button" class="move-content" data-direction="up" title="Mover para cima" aria-label="Mover {{ $content->title }} para cima">↑</button>
-                                        <button type="button" class="move-content" data-direction="down" title="Mover para baixo" aria-label="Mover {{ $content->title }} para baixo">↓</button>
-                                    @endif
+                                <td>
+                                    <div class="actions">
+                                        @if ($canReorder)
+                                            <button type="button" class="move-content" data-direction="up" title="Mover para cima" aria-label="Mover {{ $content->title }} para cima">↑</button>
+                                            <button type="button" class="move-content" data-direction="down" title="Mover para baixo" aria-label="Mover {{ $content->title }} para baixo">↓</button>
+                                        @endif
 
-                                    <a href="{{ route('contents.edit', $content) }}" class="edit">
-                                        <img src="{{ asset('images/editar.png') }}" alt="Editar">
-                                    </a>
+                                        <a href="{{ route('contents.edit', $content) }}" class="edit">
+                                            <img src="{{ asset('images/editar.png') }}" alt="Editar">
+                                        </a>
 
-                                    <form action="{{ route('contents.destroy', $content) }}" method="POST"
-                                        onsubmit="return confirm('Deseja excluir este conteúdo?')">
-                                        @csrf
-                                        @method('DELETE')
+                                        <form action="{{ route('contents.destroy', $content) }}" method="POST"
+                                            onsubmit="return confirm('Deseja excluir este conteúdo?')">
+                                            @csrf
+                                            @method('DELETE')
 
-                                        <button type="submit" class="delete">
-                                            <img src="{{ asset('images/lixeira.png') }}" alt="Excluir">
-                                        </button>
-                                    </form>
+                                            <button type="submit" class="delete">
+                                                <img src="{{ asset('images/lixeira.png') }}" alt="Excluir">
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
