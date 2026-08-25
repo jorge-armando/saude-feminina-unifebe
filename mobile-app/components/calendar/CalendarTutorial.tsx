@@ -4,10 +4,10 @@ import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Animated,
+  BackHandler,
   findNodeHandle,
   InteractionManager,
   LayoutChangeEvent,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -229,25 +229,31 @@ export function CalendarTutorial({
     return () => animation.stop();
   }, [glowProgress, reduceMotion, targetFrame, visible]);
 
-  if (!step) {
+  useEffect(() => {
+    if (!visible) return;
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        onClose();
+        return true;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [onClose, visible]);
+
+  if (!visible || !step) {
     return null;
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType={reduceMotion ? "none" : "fade"}
-      statusBarTranslucent
-      presentationStyle="overFullScreen"
-      onRequestClose={onClose}
+    <View
+      style={[
+        styles.layer,
+        { paddingBottom: Math.max(insets.bottom, 16) },
+      ]}
     >
-      <View
-        style={[
-          styles.layer,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
         <View
           ref={frameOriginRef}
           collapsable={false}
@@ -448,17 +454,21 @@ export function CalendarTutorial({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   layer: {
-    flex: 1,
+    bottom: 0,
     justifyContent: "flex-end",
+    left: 0,
     paddingHorizontal: 12,
     paddingTop: 16,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 1000,
   },
   backdrop: {
     backgroundColor: "rgba(15, 23, 42, 0.22)",
