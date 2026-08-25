@@ -14,10 +14,13 @@ import {
   InteractionManager,
   LayoutChangeEvent,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -29,6 +32,11 @@ import {
 } from "../../components/calendar/CalendarTutorial";
 import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
 import { useNavigationState } from "../../hooks/useNavigationState";
+import {
+  CalendarNote,
+  loadCalendarNotes,
+  saveCalendarNotes,
+} from "../../services/calendarNotes";
 import {
   compareLocalDates,
   daysBetween,
@@ -135,9 +143,48 @@ export default function CalendarPage() {
   const [tutorialLayoutRevision, setTutorialLayoutRevision] = useState(0);
   const [recordToDelete, setRecordToDelete] =
     useState<MenstrualCycleRecord | null>(null);
+  const [notes, setNotes] = useState<CalendarNote[]>([]);
+  const [noteText, setNoteText] = useState("");
+  const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
+  const [notesReady, setNotesReady] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
 
   useNavigationState("/user/calendar");
+
+  useEffect(() => {
+    void loadCalendarNotes()
+      .then(setNotes)
+      .catch(() => setNotesError("Não foi possível carregar suas anotações."))
+      .finally(() => setNotesReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!notesReady) return;
+
+    void saveCalendarNotes(notes).catch(() =>
+      setNotesError("Não foi possível salvar suas anotações.")
+    );
+  }, [notes, notesReady]);
+
+  const saveNote = () => {
+    const text = noteText.trim();
+    if (!text) return;
+
+    setNotes((current) => [
+      {
+        id: `${Date.now()}`,
+        date: selectedDate,
+        note: text,
+        symptoms: [],
+        emoji: "📝",
+      },
+      ...current,
+    ]);
+    setNoteText("");
+    setNotesError(null);
+    setIsNoteModalVisible(false);
+  };
 
   const monthGrid = useMemo(() => getMonthGrid(visibleMonth), [visibleMonth]);
   const selectedRecord = records.find((record) =>
@@ -616,6 +663,71 @@ export default function CalendarPage() {
           )}
         </View>
 
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Minhas anotações</Text>
+              <Text style={styles.sectionSubtitle}>
+                Registre como você se sentiu em uma data.
+              </Text>
+            </View>
+            <View style={styles.notesIcon}>
+              <Ionicons name="create-outline" size={21} color="#be185d" />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.86}
+            style={styles.addNoteButton}
+            onPress={() => {
+              setNoteText("");
+              setNotesError(null);
+              setIsNoteModalVisible(true);
+            }}
+          >
+            <Ionicons name="add-circle" size={23} color="#ffffff" />
+            <Text style={styles.addNoteButtonText}>
+              Anotar em {formatShortDate(selectedDate)}
+            </Text>
+          </TouchableOpacity>
+
+          {notesError ? (
+            <Text accessibilityRole="alert" style={styles.notesError}>
+              {notesError}
+            </Text>
+          ) : null}
+
+          {notes.map((item) => (
+            <View key={item.id} style={styles.noteCard}>
+              <View style={styles.noteEmojiBox}>
+                <Text style={styles.noteEmoji}>{item.emoji || "📝"}</Text>
+              </View>
+              <View style={styles.noteContent}>
+                <Text style={styles.noteDate}>
+                  {/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(item.date)
+                    ? formatLongDate(item.date)
+                    : item.date}
+                </Text>
+                <Text style={styles.noteText}>{item.note}</Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Excluir anotação"
+                accessibilityRole="button"
+                activeOpacity={0.72}
+                style={styles.noteDeleteButton}
+                onPress={() =>
+                  setNotes((current) =>
+                    current.filter((note) => note.id !== item.id)
+                  )
+                }
+              >
+                <Ionicons name="trash-outline" size={18} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
         <View
           style={styles.section}
           onLayout={(event) => handleTutorialTargetLayout("calendar", event)}
@@ -1038,10 +1150,9 @@ export default function CalendarPage() {
             <View style={styles.localDataContent}>
               <Text style={styles.localDataTitle}>Dados armazenados localmente</Text>
               <Text style={styles.localDataText}>
-                Nesta versão preliminar, seus registros ficam somente neste aparelho.
-                O app não oferece conta, sincronização ou backup próprio; o sistema do aparelho
-                pode aplicar suas regras de backup. Você pode apagar os dados no Perfil.
-                A previsão é uma estimativa e não substitui orientação profissional.
+                Seus registros e anotações ficam protegidos neste aparelho e podem ser
+                apagados no Perfil. A previsão é uma estimativa e não substitui
+                orientação profissional.
               </Text>
             </View>
           </View>
@@ -1062,6 +1173,64 @@ export default function CalendarPage() {
           )
         }
       />
+
+      <Modal
+        visible={isNoteModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsNoteModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <Pressable
+            accessibilityLabel="Fechar nova anotação"
+            style={styles.modalOverlay}
+            onPress={() => setIsNoteModalVisible(false)}
+          />
+          <View style={styles.noteModal} accessibilityViewIsModal>
+            <View style={styles.noteModalHeader}>
+              <View>
+                <Text style={styles.noteModalTitle}>Nova anotação</Text>
+                <Text style={styles.noteModalDate}>
+                  {formatLongDate(selectedDate)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Fechar"
+                onPress={() => setIsNoteModalVisible(false)}
+              >
+                <Ionicons name="close" size={25} color="#4b5563" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              autoFocus
+              maxLength={600}
+              multiline
+              placeholder="Escreva como foi seu dia..."
+              placeholderTextColor="#9ca3af"
+              style={styles.noteInput}
+              textAlignVertical="top"
+              value={noteText}
+              onChangeText={setNoteText}
+            />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !noteText.trim() }}
+              activeOpacity={0.82}
+              disabled={!noteText.trim()}
+              style={[
+                styles.noteSaveButton,
+                !noteText.trim() && styles.saveButtonDisabled,
+              ]}
+              onPress={saveNote}
+            >
+              <Text style={styles.noteSaveButtonText}>Salvar anotação</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={Boolean(recordToDelete)}
@@ -1897,6 +2066,105 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 17,
   },
+  notesIcon: {
+    alignItems: "center",
+    backgroundColor: "#fce7f3",
+    borderRadius: 16,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  addNoteButton: {
+    alignItems: "center",
+    backgroundColor: "#be185d",
+    borderRadius: 17,
+    flexDirection: "row",
+    gap: 9,
+    justifyContent: "center",
+    marginTop: 16,
+    minHeight: 52,
+    paddingHorizontal: 16,
+  },
+  addNoteButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  notesError: {
+    color: "#b91c1c",
+    fontSize: 12,
+    marginTop: 10,
+  },
+  noteCard: {
+    alignItems: "flex-start",
+    backgroundColor: "#ffffff",
+    borderColor: "#fbcfe8",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+    padding: 14,
+  },
+  noteEmojiBox: {
+    alignItems: "center",
+    backgroundColor: "#fdf2f8",
+    borderRadius: 13,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  noteEmoji: { fontSize: 21 },
+  noteContent: { flex: 1, minWidth: 0 },
+  noteDate: {
+    color: "#be185d",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 5,
+  },
+  noteText: { color: "#374151", fontSize: 14, lineHeight: 20 },
+  noteDeleteButton: {
+    alignItems: "center",
+    borderRadius: 11,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  noteModal: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    elevation: 10,
+    maxWidth: 520,
+    padding: 22,
+    width: "100%",
+  },
+  noteModalHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  noteModalTitle: { color: "#111827", fontSize: 20, fontWeight: "800" },
+  noteModalDate: { color: "#6b7280", fontSize: 12, marginTop: 4 },
+  noteInput: {
+    backgroundColor: "#f9fafb",
+    borderColor: "#e5e7eb",
+    borderRadius: 15,
+    borderWidth: 1,
+    color: "#111827",
+    fontSize: 14,
+    minHeight: 130,
+    padding: 14,
+  },
+  noteSaveButton: {
+    alignItems: "center",
+    backgroundColor: "#be185d",
+    borderRadius: 15,
+    justifyContent: "center",
+    marginTop: 14,
+    minHeight: 50,
+  },
+  noteSaveButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "800" },
   modalContainer: {
     alignItems: "center",
     flex: 1,
