@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { ComponentProps, useEffect, useMemo, useRef } from "react";
 import {
   AccessibilityInfo,
+  Animated,
   findNodeHandle,
   InteractionManager,
   LayoutChangeEvent,
@@ -29,6 +31,13 @@ export interface CalendarTutorialStep {
   title: string;
   description: string;
   icon: ComponentProps<typeof Ionicons>["name"];
+}
+
+export interface CalendarTutorialTargetFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export const CALENDAR_TUTORIAL_STEPS: CalendarTutorialStep[] = [
@@ -85,6 +94,7 @@ interface CalendarTutorialProps {
   onClose: () => void;
   onCardHeightChange: (height: number) => void;
   reduceMotion: boolean;
+  targetFrame: CalendarTutorialTargetFrame | null;
 }
 
 export function CalendarTutorial({
@@ -96,11 +106,17 @@ export function CalendarTutorial({
   onClose,
   onCardHeightChange,
   reduceMotion,
+  targetFrame,
 }: CalendarTutorialProps) {
   const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
+  const {
+    fontScale,
+    height: viewportHeight,
+    width: viewportWidth,
+  } = useWindowDimensions();
   const bodyScrollRef = useRef<ScrollView>(null);
   const announcementRef = useRef<View>(null);
+  const glowProgress = useRef(new Animated.Value(0)).current;
   const step = useMemo(() => {
     const selectedStep = CALENDAR_TUTORIAL_STEPS[stepIndex];
 
@@ -116,6 +132,29 @@ export function CalendarTutorial({
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === CALENDAR_TUTORIAL_STEPS.length - 1;
   const useCompactLayout = fontScale >= 1.4;
+  let visibleTargetFrame:
+    | (CalendarTutorialTargetFrame & { left: number; top: number })
+    | null = null;
+
+  if (targetFrame) {
+    const left = Math.max(8, targetFrame.x - 6);
+    const top = Math.max(8, targetFrame.y - 6);
+
+    visibleTargetFrame = {
+      x: left,
+      y: top,
+      height: Math.max(
+        24,
+        Math.min(targetFrame.height + 12, viewportHeight - top - 8)
+      ),
+      left,
+      top,
+      width: Math.max(
+        24,
+        Math.min(targetFrame.width + 12, viewportWidth - left - 8)
+      ),
+    };
+  }
 
   useEffect(() => {
     if (!visible || !step) {
@@ -134,6 +173,32 @@ export function CalendarTutorial({
 
     return () => focusTask.cancel();
   }, [step, visible]);
+
+  useEffect(() => {
+    if (!visible || !targetFrame || reduceMotion) {
+      glowProgress.stopAnimation();
+      glowProgress.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowProgress, {
+          duration: 900,
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowProgress, {
+          duration: 900,
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+
+    return () => animation.stop();
+  }, [glowProgress, reduceMotion, targetFrame, visible]);
 
   if (!step) {
     return null;
@@ -155,6 +220,59 @@ export function CalendarTutorial({
         ]}
       >
         <Pressable accessible={false} style={styles.backdrop} />
+
+        {visibleTargetFrame ? (
+          <Animated.View
+            accessible={false}
+            pointerEvents="none"
+            style={[
+              styles.targetFrame,
+              {
+                height: visibleTargetFrame.height,
+                left: visibleTargetFrame.left,
+                opacity: glowProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.84, 1],
+                }),
+                top: visibleTargetFrame.top,
+                transform: [
+                  {
+                    scale: glowProgress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.012],
+                    }),
+                  },
+                ],
+                width: visibleTargetFrame.width,
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["#7e22ce", "#ec4899", "#8b5cf6", "#7e22ce"]}
+              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.frameEdge, styles.frameTop]}
+            />
+            <LinearGradient
+              colors={["#8b5cf6", "#ec4899", "#7e22ce"]}
+              end={{ x: 0, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.frameEdge, styles.frameRight]}
+            />
+            <LinearGradient
+              colors={["#7e22ce", "#8b5cf6", "#ec4899", "#7e22ce"]}
+              end={{ x: 0, y: 0 }}
+              start={{ x: 1, y: 0 }}
+              style={[styles.frameEdge, styles.frameBottom]}
+            />
+            <LinearGradient
+              colors={["#ec4899", "#8b5cf6", "#7e22ce"]}
+              end={{ x: 0, y: 0 }}
+              start={{ x: 0, y: 1 }}
+              style={[styles.frameEdge, styles.frameLeft]}
+            />
+          </Animated.View>
+        ) : null}
 
         <View
           accessibilityViewIsModal
@@ -307,12 +425,55 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   backdrop: {
-    backgroundColor: "rgba(15, 23, 42, 0.14)",
+    backgroundColor: "rgba(15, 23, 42, 0.22)",
     bottom: 0,
     left: 0,
     position: "absolute",
     right: 0,
     top: 0,
+  },
+  targetFrame: {
+    borderRadius: 24,
+    elevation: 30,
+    position: "absolute",
+    shadowColor: "#a855f7",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 14,
+    zIndex: 2,
+  },
+  frameEdge: { position: "absolute" },
+  frameTop: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: 4,
+    left: 0,
+    right: 0,
+    top: 0,
+  },
+  frameRight: {
+    bottom: 0,
+    borderBottomRightRadius: 24,
+    borderTopRightRadius: 24,
+    right: 0,
+    top: 0,
+    width: 4,
+  },
+  frameBottom: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    bottom: 0,
+    height: 4,
+    left: 0,
+    right: 0,
+  },
+  frameLeft: {
+    borderBottomLeftRadius: 24,
+    borderTopLeftRadius: 24,
+    bottom: 0,
+    left: 0,
+    top: 0,
+    width: 4,
   },
   card: {
     backgroundColor: "#ffffff",
@@ -329,6 +490,7 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     width: "100%",
     alignSelf: "center",
+    zIndex: 3,
   },
   topRow: {
     alignItems: "center",

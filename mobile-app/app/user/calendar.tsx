@@ -30,6 +30,7 @@ import {
   CalendarTutorial,
   CALENDAR_TUTORIAL_STEPS,
   CalendarTutorialTarget,
+  CalendarTutorialTargetFrame,
 } from "../../components/calendar/CalendarTutorial";
 import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
 import { useNavigationState } from "../../hooks/useNavigationState";
@@ -130,6 +131,9 @@ export default function CalendarPage() {
     history: 0,
     privacy: 0,
   });
+  const tutorialTargetRefs = useRef<
+    Partial<Record<CalendarTutorialTarget, View | null>>
+  >({});
   const today = toLocalDate(new Date());
   const initialMonth = getMonthFromLocalDate(today);
   const {
@@ -158,6 +162,8 @@ export default function CalendarPage() {
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [tutorialCardHeight, setTutorialCardHeight] = useState(280);
   const [tutorialLayoutRevision, setTutorialLayoutRevision] = useState(0);
+  const [tutorialTargetFrame, setTutorialTargetFrame] =
+    useState<CalendarTutorialTargetFrame | null>(null);
   const [recordToDelete, setRecordToDelete] =
     useState<MenstrualCycleRecord | null>(null);
   const [notes, setNotes] = useState<CalendarNote[]>([]);
@@ -284,9 +290,11 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!isTutorialActive) {
+      setTutorialTargetFrame(null);
       return;
     }
 
+    let measureTimer: ReturnType<typeof setTimeout> | null = null;
     const animationFrame = requestAnimationFrame(() => {
       const target = CALENDAR_TUTORIAL_STEPS[tutorialStepIndex]?.target;
 
@@ -298,9 +306,26 @@ export default function CalendarPage() {
         y: Math.max(0, tutorialOffsetsRef.current[target] - 10),
         animated: !reduceMotion,
       });
+
+      setTutorialTargetFrame(null);
+      measureTimer = setTimeout(
+        () => {
+          tutorialTargetRefs.current[target]?.measureInWindow(
+            (x, y, width, height) => {
+              if (width > 0 && height > 0) {
+                setTutorialTargetFrame({ x, y, width, height });
+              }
+            }
+          );
+        },
+        reduceMotion ? 50 : 420
+      );
     });
 
-    return () => cancelAnimationFrame(animationFrame);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      if (measureTimer) clearTimeout(measureTimer);
+    };
   }, [
     isTutorialActive,
     reduceMotion,
@@ -333,9 +358,6 @@ export default function CalendarPage() {
       setCalendarOffsetY(offsetY);
     }
   };
-
-  const isHighlightedForTutorial = (target: CalendarTutorialTarget) =>
-    currentTutorialTarget === target;
 
   const changeMonth = (amount: number) => {
     setVisibleMonth((currentMonth) => {
@@ -569,9 +591,11 @@ export default function CalendarPage() {
         keyboardShouldPersistTaps="handled"
       >
         <View
+          ref={(node) => {
+            tutorialTargetRefs.current.intro = node;
+          }}
           style={[
             styles.header,
-            isHighlightedForTutorial("intro") && styles.tutorialTarget,
           ]}
           onLayout={(event) => handleTutorialTargetLayout("intro", event)}
         >
@@ -630,9 +654,11 @@ export default function CalendarPage() {
         )}
 
         <View
+          ref={(node) => {
+            tutorialTargetRefs.current.prediction = node;
+          }}
           style={[
             styles.section,
-            isHighlightedForTutorial("prediction") && styles.tutorialTarget,
           ]}
           onLayout={(event) => handleTutorialTargetLayout("prediction", event)}
         >
@@ -725,9 +751,11 @@ export default function CalendarPage() {
         >
           <View style={styles.calendarCard}>
             <View
+              ref={(node) => {
+                tutorialTargetRefs.current.calendar = node;
+              }}
               style={[
                 styles.calendarHeader,
-                isHighlightedForTutorial("calendar") && styles.tutorialTarget,
               ]}
             >
               <TouchableOpacity
@@ -929,9 +957,11 @@ export default function CalendarPage() {
         </View>
 
         <View
+          ref={(node) => {
+            tutorialTargetRefs.current.registration = node;
+          }}
           style={[
             styles.section,
-            isHighlightedForTutorial("registration") && styles.tutorialTarget,
           ]}
           onLayout={(event) =>
             handleTutorialTargetLayout("registration", event)
@@ -1041,9 +1071,11 @@ export default function CalendarPage() {
           onLayout={(event) => handleTutorialTargetLayout("history", event)}
         >
           <View
+            ref={(node) => {
+              tutorialTargetRefs.current.history = node;
+            }}
             style={[
               styles.sectionHeadingRow,
-              isHighlightedForTutorial("history") && styles.tutorialTarget,
             ]}
           >
             <View>
@@ -1252,9 +1284,11 @@ export default function CalendarPage() {
         </View>
 
         <View
+          ref={(node) => {
+            tutorialTargetRefs.current.privacy = node;
+          }}
           style={[
             styles.section,
-            isHighlightedForTutorial("privacy") && styles.tutorialTarget,
           ]}
           onLayout={(event) => handleTutorialTargetLayout("privacy", event)}
         >
@@ -1282,6 +1316,7 @@ export default function CalendarPage() {
         onNext={showNextTutorialStep}
         onClose={closeTutorial}
         reduceMotion={reduceMotion}
+        targetFrame={tutorialTargetFrame}
         onCardHeightChange={(height) =>
           setTutorialCardHeight((currentHeight) =>
             Math.abs(currentHeight - height) > 1 ? height : currentHeight
@@ -1677,15 +1712,6 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 12,
     marginBottom: 20,
-  },
-  tutorialTarget: {
-    backgroundColor: "rgba(255,255,255,0.42)",
-    borderRadius: 34,
-    elevation: 10,
-    shadowColor: "#7e22ce",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.38,
-    shadowRadius: 18,
   },
   messageSpacing: {
     marginBottom: 12,
