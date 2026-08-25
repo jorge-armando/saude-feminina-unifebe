@@ -31,6 +31,17 @@
                     @method('PUT')
                 @endif
 
+                @if ($errors->any())
+                    <div class="alert alert-error" role="alert">
+                        <strong>Não foi possível salvar o conteúdo.</strong>
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="form-card">
 
                     <h2>Informações Básicas</h2>
@@ -55,6 +66,15 @@
                         <small>Separe as tags com vírgula</small>
                     </div>
 
+                    <div class="form-group">
+                        <label for="youtube_url">Vídeo do YouTube (opcional)</label>
+                        <input id="youtube_url" type="url" name="youtube_url"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value="{{ old('youtube_url', $content->youtube_url ?? '') }}">
+
+                        <small>Cole um link do YouTube, YouTube Shorts ou youtu.be. O app abrirá o vídeo e poderá exibir o miniplayer.</small>
+                    </div>
+
                 </div>
 
                 <div class="form-card">
@@ -66,6 +86,8 @@
 
                         <input type="hidden" name="content" id="content"
                             value="{{ old('content', $content->content ?? '') }}">
+
+                        <small>Para usar uma imagem no artigo e no card em destaque, insira-a pelo botão de imagem do editor. A primeira imagem será usada como capa.</small>
                     </div>
 
                 </div>
@@ -128,10 +150,19 @@
                                 method: 'POST',
                                 headers: {
                                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json',
                                 },
                                 body: formData,
                             })
-                                .then((response) => response.json())
+                                .then(async (response) => {
+                                    const data = await response.json();
+
+                                    if (!response.ok || !data.url) {
+                                        throw new Error(data.message || 'Falha no envio da imagem.');
+                                    }
+
+                                    return data;
+                                })
                                 .then((data) => callback(data.url, blob.name || 'imagem'))
                                 .catch(() => alert('Não foi possível enviar a imagem.'));
 

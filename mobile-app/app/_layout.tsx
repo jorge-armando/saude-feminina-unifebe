@@ -1,8 +1,12 @@
 import { router, Stack } from "expo-router";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 if (Platform.OS !== "web") {
   Notifications.setNotificationHandler({
@@ -25,6 +29,17 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    focusManager.setFocused(AppState.currentState === "active");
+    const subscription = AppState.addEventListener("change", (state) => {
+      focusManager.setFocused(state === "active");
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   useEffect(() => {
     if (Platform.OS === "web") return;
 

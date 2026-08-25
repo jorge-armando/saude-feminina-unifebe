@@ -1,9 +1,18 @@
-import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 import { resolveContentAssetUrl } from "../../services/api";
+import {
+  extractStandaloneYouTubeUrl,
+  getYouTubeVideoId,
+  parseStandaloneHtmlImage,
+  parseStandaloneMarkdownImage,
+  toCanonicalYouTubeUrl,
+} from "../../services/contentMedia";
+import { ContentImage } from "./ContentImage";
+import { YouTubePlayer } from "./YouTubePlayer";
 
 interface SafeMarkdownProps {
   children: string;
+  youtubeUrl?: string | null;
 }
 
 const MAX_ARTICLE_CHARACTERS = 100_000;
@@ -17,41 +26,67 @@ function plainInlineText(value: string) {
     .trim();
 }
 
-export function SafeMarkdown({ children }: SafeMarkdownProps) {
+export function SafeMarkdown({ children, youtubeUrl }: SafeMarkdownProps) {
   const wasTruncated = children.length > MAX_ARTICLE_CHARACTERS;
   const lines = children
     .slice(0, MAX_ARTICLE_CHARACTERS)
     .replace(/\r\n?/g, "\n")
     .split("\n");
+  const preferredYouTubeUrl = youtubeUrl
+    ? toCanonicalYouTubeUrl(youtubeUrl)
+    : null;
+  const videosInBody = new Set(
+    lines
+      .map(extractStandaloneYouTubeUrl)
+      .filter((url): url is string => !!url)
+      .map((url) => getYouTubeVideoId(url))
+      .filter((id): id is string => !!id),
+  );
+  const preferredVideoId = preferredYouTubeUrl
+    ? getYouTubeVideoId(preferredYouTubeUrl)
+    : null;
 
   return (
     <View>
+      {preferredYouTubeUrl &&
+      preferredVideoId &&
+      !videosInBody.has(preferredVideoId) ? (
+        <YouTubePlayer url={preferredYouTubeUrl} />
+      ) : null}
+
       {lines.map((rawLine, index) => {
         const line = rawLine.trim();
         if (!line) {
           return <View key={`space-${index}`} style={styles.space} />;
         }
 
-        const image = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(line);
+        const youtube = extractStandaloneYouTubeUrl(line);
+        const youtubeId = youtube ? getYouTubeVideoId(youtube) : null;
+        if (youtube && youtubeId) {
+          return <YouTubePlayer key={`youtube-${index}`} url={youtube} />;
+        }
+
+        const image =
+          parseStandaloneMarkdownImage(line) ?? parseStandaloneHtmlImage(line);
         if (image) {
-          const resolvedUrl = resolveContentAssetUrl(image[2]);
+          const resolvedUrl = resolveContentAssetUrl(image.url);
 
           if (!resolvedUrl) {
-            return image[1] ? (
+            return image.alt ? (
               <Text key={`image-alt-${index}`} style={styles.paragraphBlock}>
-                {image[1]}
+                {image.alt}
               </Text>
             ) : null;
           }
 
           return (
-            <Image
+            <ContentImage
               key={`image-${index}`}
-              source={{ uri: resolvedUrl }}
+              url={resolvedUrl}
               style={styles.image}
               contentFit="cover"
               transition={200}
-              accessibilityLabel={image[1] || "Imagem do artigo"}
+              alt={image.alt || "Imagem do artigo"}
             />
           );
         }

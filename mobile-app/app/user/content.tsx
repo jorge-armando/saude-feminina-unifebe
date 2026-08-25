@@ -14,6 +14,12 @@ import {
 } from "react-native";
 import { useNavigationState } from "../../hooks/useNavigationState";
 import { useContents } from "../../hooks/useContents";
+import { ContentImage } from "../../components/content/ContentImage";
+import { getFeaturedContent } from "../../services/api";
+import {
+  getContentExcerpt,
+  getContentImageUrl,
+} from "../../services/contentMedia";
 
 export default function ContentPage() {
   const router = useRouter();
@@ -31,13 +37,20 @@ export default function ContentPage() {
     );
   });
 
-  // Pega o primeiro conteúdo como destaque (apenas quando não há busca)
-  const featuredContent = searchQuery.length === 0 ? filteredContents?.[0] : undefined;
+  // A API define o destaque por is_featured/position; a ordem recebida é
+  // mantida para os demais artigos.
+  const featuredContent =
+    searchQuery.length === 0
+      ? getFeaturedContent(filteredContents ?? [])
+      : undefined;
 
   // Remove o destaque da lista de artigos
   const articles = searchQuery.length === 0
-    ? filteredContents?.slice(1) || []
+    ? filteredContents?.filter((content) => content.id !== featuredContent?.id) || []
     : filteredContents || [];
+  const featuredImageUrl = featuredContent
+    ? getContentImageUrl(featuredContent)
+    : null;
 
   return (
     <LinearGradient
@@ -82,7 +95,7 @@ export default function ContentPage() {
             <ActivityIndicator size="large" color="#ec4899" />
             <Text style={styles.loadingText}>Carregando conteúdos...</Text>
           </View>
-        ) : error ? (
+        ) : error && !data ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={48} color="#ef4444" />
             <Text style={styles.errorText}>Erro ao carregar conteúdos</Text>
@@ -92,6 +105,15 @@ export default function ContentPage() {
           </View>
         ) : (
           <>
+            {error && data ? (
+              <View accessibilityRole="alert" style={styles.refreshWarning}>
+                <Ionicons name="cloud-offline-outline" size={18} color="#9f1239" />
+                <Text style={styles.refreshWarningText}>
+                  Não foi possível atualizar agora. Exibindo a última versão.
+                </Text>
+              </View>
+            ) : null}
+
             {featuredContent && (
               <>
                 <View style={styles.sectionHeader}>
@@ -105,36 +127,51 @@ export default function ContentPage() {
                     router.push(`/user/content-detail?id=${featuredContent.id}` as any)
                   }
                 >
-                  <LinearGradient
-                    colors={["#6b21a8", "#be185d", "#be123c"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.featuredCard}
-                  >
-                    <View style={styles.featuredBadge}>
-                      <Text style={styles.featuredBadgeText}>
-                        Destaque da Semana
-                      </Text>
-                    </View>
-
-                    <Text style={styles.featuredTitle}>
-                      {featuredContent.title}
-                    </Text>
-
-                    <Text
-                      style={styles.featuredDescription}
-                      numberOfLines={2}
+                  <View style={styles.featuredCard}>
+                    {featuredImageUrl ? (
+                      <ContentImage
+                        alt={`Imagem de capa de ${featuredContent.title}`}
+                        contentFit="cover"
+                        style={styles.featuredImage}
+                        transition={200}
+                        url={featuredImageUrl}
+                      />
+                    ) : null}
+                    <LinearGradient
+                      colors={
+                        featuredImageUrl
+                          ? ["rgba(76, 29, 149, 0.72)", "rgba(190, 18, 60, 0.92)"]
+                          : ["#6b21a8", "#be185d", "#be123c"]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.featuredOverlay}
                     >
-                      {featuredContent.content.substring(0, 100)}...
-                    </Text>
+                      <View style={styles.featuredBadge}>
+                        <Text style={styles.featuredBadgeText}>
+                          Em destaque
+                        </Text>
+                      </View>
 
-                    <View style={styles.readTimeRow}>
-                      <Ionicons name="time-outline" size={14} color="#fff" />
-                      <Text style={styles.readTime}>
-                        {featuredContent.reading_time} min de leitura
+                      <Text style={styles.featuredTitle}>
+                        {featuredContent.title}
                       </Text>
-                    </View>
-                  </LinearGradient>
+
+                      <Text
+                        style={styles.featuredDescription}
+                        numberOfLines={2}
+                      >
+                        {getContentExcerpt(featuredContent.content, 120)}
+                      </Text>
+
+                      <View style={styles.readTimeRow}>
+                        <Ionicons name="time-outline" size={14} color="#fff" />
+                        <Text style={styles.readTime}>
+                          {featuredContent.reading_time} min de leitura
+                        </Text>
+                      </View>
+                    </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -149,52 +186,70 @@ export default function ContentPage() {
               </View>
             ) : null}
 
-            {articles.map((article) => (
-              <TouchableOpacity
-                key={article.id}
-                style={styles.articleCard}
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir artigo ${article.title}`}
-                onPress={() =>
-                  router.push(`/user/content-detail?id=${article.id}` as any)
-                }
-              >
-                <View style={styles.articleContent}>
-                  <View style={styles.articleInfo}>
-                    <Text style={styles.articleTitle}>{article.title}</Text>
+            {articles.map((article) => {
+              const imageUrl = getContentImageUrl(article);
+              const tags = article.tags
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+                .slice(0, 2);
 
-                    <View style={styles.articleMeta}>
-                      <View style={styles.metaItem}>
-                        <Ionicons
-                          name="time-outline"
-                          size={13}
-                          color="#9ca3af"
-                        />
-                        <Text style={styles.metaText}>
-                          {article.reading_time} min
-                        </Text>
-                      </View>
-
-                      {article.tags.split(",").slice(0, 2).map((tag, idx) => (
-                        <View key={idx} style={styles.tag}>
-                          <Text style={styles.tagText}>{tag.trim()}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.articleActions}>
-                    <View style={styles.arrowButton}>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={18}
-                        color="#ec4899"
+              return (
+                <TouchableOpacity
+                  key={article.id}
+                  style={styles.articleCard}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir artigo ${article.title}`}
+                  onPress={() =>
+                    router.push(`/user/content-detail?id=${article.id}` as any)
+                  }
+                >
+                  <View style={styles.articleContent}>
+                    {imageUrl ? (
+                      <ContentImage
+                        alt=""
+                        contentFit="cover"
+                        style={styles.articleImage}
+                        transition={150}
+                        url={imageUrl}
                       />
+                    ) : null}
+                    <View style={styles.articleInfo}>
+                      <Text style={styles.articleTitle}>{article.title}</Text>
+
+                      <View style={styles.articleMeta}>
+                        <View style={styles.metaItem}>
+                          <Ionicons
+                            name="time-outline"
+                            size={13}
+                            color="#9ca3af"
+                          />
+                          <Text style={styles.metaText}>
+                            {article.reading_time} min
+                          </Text>
+                        </View>
+
+                        {tags.map((tag) => (
+                          <View key={tag} style={styles.tag}>
+                            <Text style={styles.tagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    <View style={styles.articleActions}>
+                      <View style={styles.arrowButton}>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color="#ec4899"
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
 
             {filteredContents && filteredContents.length === 0 && (
               <View style={styles.emptyContainer}>
@@ -286,15 +341,28 @@ const styles = StyleSheet.create({
 
   featuredCard: {
     borderRadius: 24,
-    padding: 22,
+    backgroundColor: "#6b21a8",
     marginBottom: 24,
-    minHeight: 170,
-    justifyContent: "space-between",
+    minHeight: 210,
+    overflow: "hidden",
     shadowColor: "#ec4899",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
     shadowRadius: 14,
     elevation: 6,
+  },
+
+  featuredImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: undefined,
+    width: undefined,
+  },
+
+  featuredOverlay: {
+    flex: 1,
+    justifyContent: "space-between",
+    minHeight: 210,
+    padding: 22,
   },
 
   featuredBadge: {
@@ -359,6 +427,14 @@ const styles = StyleSheet.create({
   articleInfo: {
     flex: 1,
     paddingRight: 10,
+  },
+
+  articleImage: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 14,
+    height: 82,
+    marginRight: 12,
+    width: 82,
   },
 
   articleTitle: {
@@ -497,5 +573,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     marginTop: 6,
+  },
+
+  refreshWarning: {
+    alignItems: "center",
+    backgroundColor: "#fff1f2",
+    borderColor: "#fecdd3",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+    padding: 12,
+  },
+
+  refreshWarningText: {
+    color: "#9f1239",
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

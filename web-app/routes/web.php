@@ -37,6 +37,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/conteudos/upload-imagem', [ContentController::class, 'uploadImage'])
         ->name('conteudos.upload-imagem');
 
+    Route::patch('/conteudos/reordenar', [ContentController::class, 'reorder'])
+        ->name('contents.reorder');
+
     Route::delete('/conteudos/{content}', [ContentController::class, 'destroy'])
         ->name('contents.destroy');
 

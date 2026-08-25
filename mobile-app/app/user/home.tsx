@@ -32,6 +32,8 @@ import {
 } from "../../services/reminders";
 import { useAppNotificationState } from "../../hooks/useAppNotificationState";
 import { buildAppNotifications } from "../../services/appNotifications";
+import { ContentImage } from "../../components/content/ContentImage";
+import { getContentImageUrl } from "../../services/contentMedia";
 
 const dailyIcons = ["💝", "🌸", "✨", "🌙", "💕", "🦋", "🌺", "💫"];
 
@@ -160,6 +162,7 @@ export default function HomePage() {
         title: content.title,
         category: content.tags.split(",")[0]?.trim() || "Saúde",
         time: `${content.reading_time} min`,
+        imageUrl: getContentImageUrl(content),
         ...contentPalettes[index % contentPalettes.length],
       })),
     [contentsData],
@@ -562,7 +565,7 @@ export default function HomePage() {
           <View style={styles.inlineStatusCard}>
             <Text style={styles.inlineStatusText}>Carregando artigos...</Text>
           </View>
-        ) : contentsError ? (
+        ) : contentsError && !contentsData ? (
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Tentar carregar artigos novamente"
@@ -587,6 +590,15 @@ export default function HomePage() {
             onPress={() => handleOpenContentDetail(item.id)}
           >
             <View style={styles.contentRow}>
+              {item.imageUrl ? (
+                <ContentImage
+                  alt=""
+                  contentFit="cover"
+                  style={styles.contentThumbnail}
+                  transition={150}
+                  url={item.imageUrl}
+                />
+              ) : null}
               <View style={styles.contentInfo}>
                 <View style={styles.contentBadge}>
                   <Text style={styles.contentBadgeText}>{item.category}</Text>
@@ -1205,6 +1217,14 @@ const styles = StyleSheet.create({
   contentInfo: {
     flex: 1,
     padding: 0,
+  },
+
+  contentThumbnail: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    height: 92,
+    marginRight: 14,
+    width: 92,
   },
 
   contentBadge: {

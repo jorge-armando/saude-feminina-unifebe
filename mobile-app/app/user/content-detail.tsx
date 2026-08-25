@@ -12,6 +12,11 @@ import {
 import { useContent } from "../../hooks/useContents";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeMarkdown } from "../../components/content/SafeMarkdown";
+import { ContentImage } from "../../components/content/ContentImage";
+import {
+  extractFirstContentImage,
+  getContentYouTubeUrl,
+} from "../../services/contentMedia";
 
 export default function ContentDetailScreen() {
   const router = useRouter();
@@ -29,6 +34,14 @@ export default function ContentDetailScreen() {
   );
 
   const content = data?.data;
+  const imageAlreadyInBody = content
+    ? extractFirstContentImage(content.content)
+    : null;
+  const standaloneCover =
+    content?.image_url && content.image_url !== imageAlreadyInBody
+      ? content.image_url
+      : null;
+  const youtubeUrl = content ? getContentYouTubeUrl(content) : null;
 
   // Pega a primeira tag como categoria
   const category = content?.tags.split(",")[0]?.trim() || "Saúde";
@@ -152,8 +165,20 @@ export default function ContentDetailScreen() {
                 </Text>
               </View>
 
+              {standaloneCover ? (
+                <ContentImage
+                  alt={`Imagem de capa de ${content.title}`}
+                  contentFit="cover"
+                  style={styles.coverImage}
+                  transition={200}
+                  url={standaloneCover}
+                />
+              ) : null}
+
               <View style={styles.markdownContainer}>
-                <SafeMarkdown>{content.content}</SafeMarkdown>
+                <SafeMarkdown youtubeUrl={youtubeUrl}>
+                  {content.content}
+                </SafeMarkdown>
               </View>
             </View>
           ) : (
@@ -274,6 +299,13 @@ const styles = StyleSheet.create({
   },
   markdownContainer: {
     flex: 1,
+  },
+  coverImage: {
+    aspectRatio: 16 / 9,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 16,
+    marginBottom: 18,
+    width: "100%",
   },
   loadingContainer: {
     flex: 1,

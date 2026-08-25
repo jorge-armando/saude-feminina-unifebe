@@ -7,6 +7,21 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Conteúdos: contrato da API
+
+`GET /api/contents` devolve os conteúdos em ordem de exibição, com 50 itens por página por padrão (máximo de 50). `GET /api/contents/{id}` usa o mesmo formato de item. As duas respostas enviam cabeçalhos `no-store` para que um refresh consulte o estado atual do servidor.
+
+Cada item possui:
+
+- `id`, `title`, `content`, `tags`, `reading_time`, `created_at`, `updated_at`;
+- `position` (inteiro iniciado em 1) e `is_featured` (verdadeiro somente para `position = 1`);
+- `image_url` (URL absoluta da primeira imagem Markdown/HTML do corpo, ou `null`);
+- `youtube_url` (URL canônica `https://www.youtube.com/watch?v=...`, ou `null`).
+
+No painel autenticado, `PATCH /conteudos/reordenar` recebe `{ "order": [3, 1, 2] }`. A criação de um conteúdo sempre o coloca na posição 1; reordenar outro item para a primeira posição troca o destaque.
+
+Imagens enviadas pelo editor são gravadas no disco `public`. Em cada deploy, execute `php artisan migrate --force` e garanta uma vez o link público com `php artisan storage:link`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
