@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +19,7 @@ export default function ContentPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data, isLoading, error, refetch } = useContents();
+  const { data, isLoading, isRefetching, error, refetch } = useContents();
   useNavigationState('/user/content');
 
   // Filtra conteúdos baseado na busca
@@ -38,11 +39,6 @@ export default function ContentPage() {
     ? filteredContents?.slice(1) || []
     : filteredContents || [];
 
-  // Função para extrair a primeira tag
-  const getFirstTag = (tags: string) => {
-    return tags.split(",")[0] || "Saúde";
-  };
-
   return (
     <LinearGradient
       colors={["#fce7f3", "#fdf2f8", "#f3e8ff"]}
@@ -52,6 +48,16 @@ export default function ContentPage() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            colors={["#ec4899"]}
+            tintColor="#ec4899"
+            progressBackgroundColor="#ffffff"
+            accessibilityLabel="Atualizando conteúdos"
+          />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.title}>Conteúdos 📚</Text>
@@ -66,6 +72,8 @@ export default function ContentPage() {
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            maxLength={80}
+            accessibilityLabel="Buscar artigos"
           />
         </View>
 
@@ -91,12 +99,14 @@ export default function ContentPage() {
                 </View>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir artigo ${featuredContent.title}`}
                   onPress={() =>
                     router.push(`/user/content-detail?id=${featuredContent.id}` as any)
                   }
                 >
                   <LinearGradient
-                    colors={["#a855f7", "#ec4899", "#fb7185"]}
+                    colors={["#6b21a8", "#be185d", "#be123c"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.featuredCard}
@@ -129,18 +139,22 @@ export default function ContentPage() {
               </>
             )}
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {filteredContents && filteredContents.length > 0
-                  ? `Todos os Artigos 📚 (${filteredContents.length})`
-                  : "Nenhum artigo encontrado"}
-              </Text>
-            </View>
+            {articles.length > 0 ? (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {searchQuery
+                    ? `Resultados 📚 (${articles.length})`
+                    : `Mais artigos 📚 (${articles.length})`}
+                </Text>
+              </View>
+            ) : null}
 
             {articles.map((article) => (
               <TouchableOpacity
                 key={article.id}
                 style={styles.articleCard}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir artigo ${article.title}`}
                 onPress={() =>
                   router.push(`/user/content-detail?id=${article.id}` as any)
                 }
@@ -210,9 +224,12 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
+    alignSelf: "center",
+    maxWidth: 760,
     paddingTop: 55,
     paddingHorizontal: 22,
     paddingBottom: 20,
+    width: "100%",
   },
 
   header: {
@@ -367,7 +384,7 @@ const styles = StyleSheet.create({
 
   metaText: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "#6b7280",
   },
 
   tag: {

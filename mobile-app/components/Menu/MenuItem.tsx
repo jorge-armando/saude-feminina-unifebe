@@ -1,13 +1,21 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Href, Link, usePathname } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { LucideIcon } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+type MenuHref =
+  | "/user/calendar"
+  | "/user/content"
+  | "/user/home"
+  | "/user/reminders"
+  | "/user/profile";
+
 interface MenuItemProps {
-  href: Href;
+  href: MenuHref;
   text: string;
   icon: LucideIcon;
   variant?: "default" | "big";
+  activePaths?: readonly string[];
 }
 
 export function MenuItem(props: MenuItemProps) {
@@ -16,79 +24,103 @@ export function MenuItem(props: MenuItemProps) {
   const pathname = usePathname();
 
   const isBig = variant === "big";
-  const isActive = pathname === props.href;
+  const isActive = (props.activePaths ?? [props.href]).includes(pathname);
+
+  const handlePress = () => {
+    if (pathname === props.href) {
+      return;
+    }
+
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace(props.href);
+  };
 
   return (
-    <Link href={props.href} replace asChild>
-      <Pressable style={isBig ? styles.containerBig : styles.container}>
-        {isActive || isBig ? (
-          <LinearGradient
-            colors={isActive ? ["#FF2056", "#F6339A"] : ["#FF637E", "#FB64B6"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={isBig ? styles.iconWrapperBig : styles.iconWrapper}
-          >
-            <Icon size={isBig ? 28 : 24} color="#fff" />
-          </LinearGradient>
-        ) : (
-          <View style={isBig ? styles.iconWrapperBig : styles.iconWrapper}>
-            <Icon size={isBig ? 28 : 24} color="#6A7282" />
-          </View>
-        )}
-        <Text
-          style={[
-            isBig ? styles.textBig : styles.text,
-            isActive && { color: "#EC003F" },
-          ]}
+    <Pressable
+      accessibilityLabel={props.text}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.container,
+        isBig && styles.containerBig,
+        pressed && styles.containerPressed,
+      ]}
+    >
+      {isActive ? (
+        <LinearGradient
+          colors={["#FF2056", "#F6339A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.iconWrapper, isBig && styles.iconWrapperBig]}
         >
-          {props.text}
-        </Text>
-      </Pressable>
-    </Link>
+          <Icon size={isBig ? 26 : 22} color="#fff" />
+        </LinearGradient>
+      ) : (
+        <View style={[styles.iconWrapper, isBig && styles.iconWrapperBig]}>
+          <Icon size={isBig ? 26 : 22} color="#6A7282" />
+        </View>
+      )}
+      <Text
+        style={[
+          styles.text,
+          isBig && styles.textBig,
+          isActive && styles.textActive,
+        ]}
+      >
+        {props.text}
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    flexGrow: 0,
-    width: 68,
+    flex: 1,
+    justifyContent: "flex-start",
+    minHeight: 64,
+    minWidth: 44,
+    paddingHorizontal: 2,
   },
   containerBig: {
-    alignItems: "center",
-    flexGrow: 0,
-    width: 68,
+    minHeight: 64,
+  },
+  containerPressed: {
+    opacity: 0.72,
   },
   iconWrapper: {
-    height: 48,
-    width: 48,
-    borderRadius: 24,
+    height: 44,
+    width: 44,
+    borderRadius: 22,
     backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
   },
   iconWrapperBig: {
-    height: 68,
-    width: 68,
-    borderRadius: 34,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-    position: "absolute",
-    top: -22,
+    height: 56,
+    width: 56,
+    borderRadius: 28,
+    transform: [{ translateY: -20 }],
   },
   text: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: "500",
     color: "#6A7282",
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 14,
+    marginTop: 4,
+    minHeight: 14,
+    paddingHorizontal: 1,
     textAlign: "center",
   },
+  textActive: {
+    color: "#C70036",
+    fontWeight: "800",
+  },
   textBig: {
-    marginTop: "auto",
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#6A7282",
-    textAlign: "center",
+    marginTop: -8,
   },
 });

@@ -5,31 +5,33 @@ import { MenuItem } from "./MenuItem";
 
 export function Menu() {
   const insets = useSafeAreaInsets();
-  const paddingBottom = Math.max(insets.bottom, 16);
+  const paddingBottom = Math.max(insets.bottom, 10);
 
   return (
     <View style={[styles.root, { paddingBottom }]}>
-      <MenuItem href="/user/calendar" text="Calendário" icon={Calendar} />
-      <MenuItem href="/user/content" text="Conteúdos" icon={BookOpen} />
-      <MenuItem href="/user/home" text="Início" icon={Home} variant="big" />
-      <MenuItem href="/user/reminders" text="Lembretes" icon={Bell} />
-      <MenuItem href="/user/profile" text="Perfil" icon={User} />
+      <View accessibilityRole="tablist" style={styles.navigation}>
+        <MenuItem href="/user/calendar" text="Calendário" icon={Calendar} />
+        <MenuItem
+          activePaths={["/user/content", "/user/content-detail"]}
+          href="/user/content"
+          text="Conteúdos"
+          icon={BookOpen}
+        />
+        <MenuItem href="/user/home" text="Início" icon={Home} variant="big" />
+        <MenuItem href="/user/reminders" text="Lembretes" icon={Bell} />
+        <MenuItem href="/user/profile" text="Perfil" icon={User} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: "#fff",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingTop: 12,
+    borderTopColor: "#f3f4f6",
+    borderTopWidth: 1,
+    paddingHorizontal: 8,
+    paddingTop: 8,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -38,11 +40,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 8,
+    zIndex: 10,
   },
-  link: {
-    flex: 1,
-    padding: 16,
-    textAlign: "center",
-    color: "#333",
+  navigation: {
+    alignSelf: "center",
+    flexDirection: "row",
+    maxWidth: 680,
+    overflow: "visible",
+    width: "100%",
   },
 });

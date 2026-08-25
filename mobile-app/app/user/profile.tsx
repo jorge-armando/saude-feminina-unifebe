@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
   View,
   Text,
   ScrollView,
@@ -8,50 +11,138 @@ import {
   Modal,
   TextInput,
   Switch,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useNavigationState } from '../../hooks/useNavigationState';
+import { useMenstrualCycles } from '../../hooks/useMenstrualCycles';
+import {
+  compareLocalDates,
+  formatLongDate,
+  toLocalDate,
+} from '../../services/menstrualCycle';
+import {
+  loadLocalUserProfile,
+  MAX_USER_NAME_LENGTH,
+  updateLocalUserName,
+} from '../../services/userProfile';
+import { clearLocalAppData } from '../../services/appData';
+import { useReminders } from '../../hooks/useReminders';
 
 export default function ProfilePage() {
-  const [name, setName] = useState('Maria Silva');
+  const [name, setName] = useState('Usuária');
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
   const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
   const [isNotificationsModalVisible, setIsNotificationsModalVisible] = useState(false);
-  const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [newContentEnabled, setNewContentEnabled] = useState(true);
-  const [generalNotificationsEnabled, setGeneralNotificationsEnabled] = useState(true);
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [isResettingData, setIsResettingData] = useState(false);
+  const isFocused = useIsFocused();
+  const {
+    preferences,
+    notificationStatus,
+    isLoading: isPreferencesLoading,
+    isSaving: isPreferencesSaving,
+    error: preferencesError,
+    changePreferences,
+  } = useReminders();
+  const {
+    records: cycleRecords,
+    prediction: cyclePrediction,
+    isLoading: isCycleLoading,
+    error: cycleError,
+  } = useMenstrualCycles();
 
   useNavigationState('/user/profile');
 
+  const cyclePredictionIsOverdue = Boolean(
+    cyclePrediction &&
+      compareLocalDates(toLocalDate(new Date()), cyclePrediction.endDate) > 0
+  );
+
   useEffect(() => {
     async function loadName() {
-      const savedName = await AsyncStorage.getItem('userName');
-      if (savedName) {
-        setName(savedName);
+      try {
+        const profile = await loadLocalUserProfile();
+        if (profile) {
+          setName(profile.name);
+          setCreatedAt(profile.createdAt);
+        }
+      } catch {
+        setNameError('Não foi possível carregar o perfil local.');
       }
     }
 
-    loadName();
-  }, []);
+    if (isFocused) {
+      void loadName();
+    }
+  }, [isFocused]);
 
 
   const healthInfo = [
-    { label: 'Próxima menstruação', value: '5 de Março', icon: '🌸' },
-    { label: 'Duração', value: '5 dias', icon: '📊' },
-    { label: 'Ciclo', value: '28 dias', icon: '📅' },
-    { label: 'Fase atual', value: 'Fase Lútea', icon: '🌙' },
+    {
+      label: cyclePredictionIsOverdue
+        ? 'Última previsão'
+        : 'Próxima previsão',
+      value: isCycleLoading
+        ? 'Carregando...'
+        : cycleError
+          ? 'Indisponível'
+        : cyclePrediction
+          ? formatLongDate(cyclePrediction.startDate)
+          : 'Sem previsão',
+      icon: '🌸',
+    },
+    {
+      label: 'Duração média',
+      value: isCycleLoading
+        ? 'Carregando...'
+        : cycleError
+          ? 'Indisponível'
+          : cyclePrediction
+            ? `${cyclePrediction.averagePeriodLength} ${
+                cyclePrediction.averagePeriodLength === 1 ? 'dia' : 'dias'
+              }`
+            : '--',
+      icon: '📊',
+    },
+    {
+      label:
+        cyclePrediction?.basedOnCycles === 1 ? 'Ciclo estimado' : 'Ciclo médio',
+      value: isCycleLoading
+        ? 'Carregando...'
+        : cycleError
+          ? 'Indisponível'
+          : cyclePrediction
+            ? `${cyclePrediction.averageCycleLength} dias`
+            : '--',
+      icon: '📅',
+    },
+    {
+      label: 'Períodos locais',
+      value: isCycleLoading
+        ? 'Carregando...'
+        : cycleError
+          ? 'Indisponível'
+          : `${cycleRecords.length} ${
+              cycleRecords.length === 1 ? 'período' : 'períodos'
+            }`,
+      icon: '📱',
+    },
   ];
 
   const menuItems = [
     {
       id: 'cycle',
-      title: 'Configurações do Ciclo',
+      title: 'Calendário menstrual',
       icon: 'settings-outline',
       color: '#ec4899',
     },
@@ -70,10 +161,82 @@ export default function ProfilePage() {
   ];
 
   const handleSaveName = async () => {
-    if (editedName.trim()) {
-      setName(editedName.trim());
-      await AsyncStorage.setItem('userName', editedName.trim());
+    if (isSavingName) return;
+
+    setIsSavingName(true);
+    setNameError(null);
+
+    try {
+      const savedName = await updateLocalUserName(editedName);
+      setName(savedName);
       setIsEditingName(false);
+    } catch (saveError) {
+      setNameError(
+        saveError instanceof Error
+          ? saveError.message
+          : 'Não foi possível salvar o nome.',
+      );
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const memberSinceLabel = createdAt
+    ? `Desde ${new Date(createdAt).toLocaleDateString('pt-BR', {
+        month: 'short',
+        year: 'numeric',
+      })}`
+    : 'Perfil local';
+
+  const confirmClearLocalData = () => {
+    Alert.alert(
+      'Apagar todos os dados locais?',
+      'Isso remove perfil, períodos, previsões, lembretes e preferências deste aparelho. A ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Apagar dados',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setIsResettingData(true);
+              try {
+                const result = await clearLocalAppData();
+                if (result.notificationCancellationFailed) {
+                  Alert.alert(
+                    'Dados apagados',
+                    'Os dados locais foram removidos, mas o sistema não confirmou o cancelamento de todos os alertas. Verifique as notificações do aparelho.',
+                  );
+                }
+                router.replace('/');
+              } catch {
+                Alert.alert(
+                  'Não foi possível apagar',
+                  'Nenhum redirecionamento foi feito. Tente novamente.',
+                );
+              } finally {
+                setIsResettingData(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  const updatePreference = async (
+    key: keyof typeof preferences,
+    enabled: boolean,
+  ) => {
+    try {
+      await changePreferences({ [key]: enabled });
+    } catch (preferenceError) {
+      Alert.alert(
+        'Não foi possível atualizar',
+        preferenceError instanceof Error
+          ? preferenceError.message
+          : 'Tente novamente.',
+      );
     }
   };
 
@@ -108,17 +271,20 @@ export default function ProfilePage() {
                 </View>
 
                 <View style={styles.nameAndBadge}>
-                  <Text style={styles.profileName}>{name}</Text>
+                  <Text numberOfLines={2} style={styles.profileName}>{name}</Text>
 
                   <Badge gradient={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.3)'] as const}>
-                    Membro desde Mar 2026
+                    {memberSinceLabel}
                   </Badge>
                 </View>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar nome do perfil"
                   style={styles.editButton}
                   onPress={() => {
                     setEditedName(name);
+                    setNameError(null);
                     setIsEditingName(true);
                   }}
                 >
@@ -171,6 +337,7 @@ export default function ProfilePage() {
                 onPress={() => {
                   if (item.id === 'help') setIsHelpModalVisible(true);
                   else if (item.id === 'notifications') setIsNotificationsModalVisible(true);
+                  else if (item.id === 'cycle') router.push('/user/calendar');
                 }}
               >
                 <View style={styles.menuLeft}>
@@ -208,15 +375,52 @@ export default function ProfilePage() {
             </LinearGradient>
           </Card>
         </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(750).springify()} style={styles.section}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Apagar todos os dados deste aparelho"
+            accessibilityState={{ busy: isResettingData }}
+            disabled={isResettingData}
+            onPress={confirmClearLocalData}
+            style={styles.clearDataButton}
+          >
+            {isResettingData ? (
+              <ActivityIndicator color="#b91c1c" />
+            ) : (
+              <Ionicons name="trash-outline" size={22} color="#b91c1c" />
+            )}
+            <View style={styles.clearDataCopy}>
+              <Text style={styles.clearDataTitle}>Apagar dados deste aparelho</Text>
+              <Text style={styles.clearDataDescription}>
+                Remove perfil, calendário, lembretes e preferências locais.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
 
-      <Modal visible={isEditingName} animationType="fade" transparent>
+      <Modal
+        visible={isEditingName}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsEditingName(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalKeyboardAvoider}
+        >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View accessibilityViewIsModal style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>✏️ Editar Perfil</Text>
 
-              <TouchableOpacity onPress={() => setIsEditingName(false)}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Fechar edição do perfil"
+                style={styles.modalCloseButton}
+                onPress={() => setIsEditingName(false)}
+              >
                 <Ionicons name="close" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -228,9 +432,19 @@ export default function ProfilePage() {
               placeholder="Digite seu nome"
               placeholderTextColor="#9ca3af"
               value={editedName}
-              onChangeText={setEditedName}
+              onChangeText={(value) => {
+                setEditedName(value);
+                setNameError(null);
+              }}
+              maxLength={MAX_USER_NAME_LENGTH}
               autoFocus
             />
+
+            {nameError ? (
+              <Text accessibilityRole="alert" style={styles.modalErrorText}>
+                {nameError}
+              </Text>
+            ) : null}
 
             <View style={styles.tipBox}>
               <Text style={styles.tipTitle}>💡 Dica</Text>
@@ -247,27 +461,54 @@ export default function ProfilePage() {
                 <Text style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
 
-<TouchableOpacity style={styles.saveButton} onPress={handleSaveName}>
-  <Text style={styles.saveText}>✓ Salvar</Text>
-</TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityState={{ busy: isSavingName }}
+                disabled={isSavingName || !editedName.trim()}
+                style={[
+                  styles.saveButton,
+                  (isSavingName || !editedName.trim()) && styles.buttonDisabled,
+                ]}
+                onPress={handleSaveName}
+              >
+                {isSavingName ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.saveText}>✓ Salvar</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={isHelpModalVisible} animationType="fade" transparent>
+      <Modal
+        visible={isHelpModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsHelpModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View accessibilityViewIsModal style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🆘 Ajuda e Suporte</Text>
-              <TouchableOpacity onPress={() => setIsHelpModalVisible(false)}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Fechar ajuda"
+                style={styles.modalCloseButton}
+                onPress={() => setIsHelpModalVisible(false)}
+              >
                 <Ionicons name="close" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalLabel}>Entre em contato conosco:</Text>
-            <Text style={styles.contactText}>📧 Email: suporte@saudefeminina.com</Text>
-            <Text style={styles.contactText}>📞 Telefone: (11) 9999-9999</Text>
-            <Text style={styles.contactText}>💬 Chat online disponível 24/7</Text>
+            <Text style={styles.modalLabel}>Sobre este protótipo</Text>
+            <Text style={styles.contactText}>
+              Esta é uma versão preliminar acadêmica. Ela não oferece chat ou atendimento médico.
+            </Text>
+            <Text style={styles.contactText}>
+              Em caso de dúvidas sobre sintomas, procure um serviço ou profissional de saúde de sua confiança.
+            </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -280,28 +521,76 @@ export default function ProfilePage() {
         </View>
       </Modal>
 
-      <Modal visible={isNotificationsModalVisible} animationType="fade" transparent>
+      <Modal
+        visible={isNotificationsModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsNotificationsModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View accessibilityViewIsModal style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🔔 Notificações</Text>
-              <TouchableOpacity onPress={() => setIsNotificationsModalVisible(false)}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Fechar preferências de notificações"
+                style={styles.modalCloseButton}
+                onPress={() => setIsNotificationsModalVisible(false)}
+              >
                 <Ionicons name="close" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalLabel}>Configure quais notificações deseja receber:</Text>
+            <Text style={styles.modalLabel}>Configure quais avisos deseja receber:</Text>
+            {notificationStatus === 'unsupported' ? (
+              <Text style={styles.notificationNotice}>
+                Alertas do aparelho exigem uma versão instalada. Neste ambiente, as preferências e os lembretes continuam salvos localmente.
+              </Text>
+            ) : notificationStatus === 'permission-denied' ? (
+              <Text style={styles.notificationNotice}>
+                A permissão foi negada. Ative as notificações nos ajustes do aparelho.
+              </Text>
+            ) : null}
+            {preferencesError ? (
+              <Text accessibilityRole="alert" style={styles.modalErrorText}>
+                {preferencesError}
+              </Text>
+            ) : null}
             <View style={styles.toggleItem}>
-              <Text style={styles.modalPrivacyText}>Lembretes de ciclo menstrual</Text>
-              <Switch value={remindersEnabled} onValueChange={setRemindersEnabled} />
+              <Text style={styles.modalPrivacyText}>Alertas de compromissos</Text>
+              <Switch
+                accessibilityLabel="Alertas de compromissos"
+                disabled={isPreferencesLoading || isPreferencesSaving}
+                value={preferences.appointmentReminders}
+                onValueChange={(enabled) =>
+                  void updatePreference('appointmentReminders', enabled)
+                }
+              />
             </View>
             <View style={styles.toggleItem}>
-              <Text style={styles.modalPrivacyText}>Novos conteúdos e dicas</Text>
-              <Switch value={newContentEnabled} onValueChange={setNewContentEnabled} />
+              <Text style={styles.modalPrivacyText}>Avisos de previsão do ciclo</Text>
+              <Switch
+                accessibilityLabel="Avisos de previsão do ciclo"
+                disabled={isPreferencesLoading || isPreferencesSaving}
+                value={preferences.cyclePredictions}
+                onValueChange={(enabled) =>
+                  void updatePreference('cyclePredictions', enabled)
+                }
+              />
             </View>
             <View style={styles.toggleItem}>
-              <Text style={styles.modalPrivacyText}>Notificações gerais do app</Text>
-              <Switch value={generalNotificationsEnabled} onValueChange={setGeneralNotificationsEnabled} />
+              <Text style={styles.modalPrivacyText}>Avisos de novos conteúdos</Text>
+              <Switch
+                accessibilityLabel="Avisos de novos conteúdos"
+                disabled={isPreferencesLoading || isPreferencesSaving}
+                value={preferences.contentUpdates}
+                onValueChange={(enabled) =>
+                  void updatePreference('contentUpdates', enabled)
+                }
+              />
             </View>
+            {isPreferencesSaving ? (
+              <ActivityIndicator color="#ec4899" style={styles.preferenceLoader} />
+            ) : null}
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -327,8 +616,11 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
+    alignSelf: 'center',
+    maxWidth: 760,
     paddingTop: 60,
     paddingBottom: 120,
+    width: '100%',
   },
 
   header: {
@@ -405,9 +697,9 @@ const styles = StyleSheet.create({
   },
 
   editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -453,12 +745,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#6b7280',
+    flex: 1,
+    flexShrink: 1,
   },
 
   healthValue: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
+    flexShrink: 1,
+    maxWidth: '45%',
+    textAlign: 'right',
   },
 
   menuItem: {
@@ -527,7 +824,40 @@ const styles = StyleSheet.create({
 
   appInfoDescription: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: '#6b7280',
+  },
+
+  clearDataButton: {
+    alignItems: 'center',
+    backgroundColor: '#fff1f2',
+    borderColor: '#fecdd3',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 72,
+    padding: 16,
+  },
+
+  clearDataCopy: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  clearDataTitle: {
+    color: '#991b1b',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  clearDataDescription: {
+    color: '#7f1d1d',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 3,
+  },
+
+  modalKeyboardAvoider: {
+    flex: 1,
   },
 
   modalOverlay: {
@@ -551,6 +881,14 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
 
+  modalCloseButton: {
+    alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -572,9 +910,10 @@ const styles = StyleSheet.create({
   },
 
   contactText: {
-    fontSize: 16,
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 21,
+    marginBottom: 10,
   },
 
   toggleItem: {
@@ -607,6 +946,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#fdf4ff',
     borderRadius: 18,
     padding: 16,
+  },
+
+  notificationNotice: {
+    backgroundColor: '#fff7ed',
+    borderRadius: 12,
+    color: '#9a3412',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 8,
+    padding: 10,
+  },
+
+  preferenceLoader: {
+    marginTop: 8,
+  },
+
+  modalErrorText: {
+    color: '#b91c1c',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
+
+  buttonDisabled: {
+    opacity: 0.55,
   },
 
   tipTitle: {

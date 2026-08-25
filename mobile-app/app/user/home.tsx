@@ -1,10 +1,17 @@
-﻿import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { useNavigationState } from "../../hooks/useNavigationState";
+import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
+import {
+  calculateCurrentCycleDay,
+  compareLocalDates,
+  daysBetween,
+  formatShortDate,
+  toLocalDate,
+} from "../../services/menstrualCycle";
 import {
   Dimensions,
   ScrollView,
@@ -15,148 +22,120 @@ import {
   View,
 } from "react-native";
 import { dailyMessages } from "../../data/dailyMessages";
-
-interface Reminder {
-  id: string;
-  type: string;
-  title: string;
-  emoji: string;
-  date: string;
-}
+import { useContents } from "../../hooks/useContents";
+import { loadLocalUserProfile } from "../../services/userProfile";
+import { getTodayDailyMessage } from "../../services/dailyMessage";
+import { useReminders } from "../../hooks/useReminders";
+import {
+  reminderToDate,
+  sortRemindersChronologically,
+} from "../../services/reminders";
+import { useAppNotificationState } from "../../hooks/useAppNotificationState";
+import { buildAppNotifications } from "../../services/appNotifications";
 
 const dailyIcons = ["💝", "🌸", "✨", "🌙", "💕", "🦋", "🌺", "💫"];
 
 const dailyColors = [
-  ["#f59e0b", "#fb7185", "#a855f7"], // Original
-  ["#ec4899", "#f97316", "#8b5cf6"], // Rosa, laranja, roxo
-  ["#06b6d4", "#3b82f6", "#8b5cf6"], // Ciano, azul, roxo
-  ["#10b981", "#f59e0b", "#ef4444"], // Verde, amarelo, vermelho
-  ["#a855f7", "#ec4899", "#06b6d4"], // Roxo, rosa, ciano
-  ["#f97316", "#10b981", "#3b82f6"], // Laranja, verde, azul
+  ["#b45309", "#be123c", "#6b21a8"],
+  ["#be185d", "#c2410c", "#6d28d9"],
+  ["#0e7490", "#1d4ed8", "#6d28d9"],
+  ["#047857", "#b45309", "#b91c1c"],
+  ["#7e22ce", "#be185d", "#0e7490"],
+  ["#c2410c", "#047857", "#1d4ed8"],
 ];
+
+const contentPalettes = [
+  { emoji: "🌙", colors: ["#fb7185", "#fda4af"] },
+  { emoji: "🥗", colors: ["#34d399", "#2dd4bf"] },
+  { emoji: "🧘‍♀️", colors: ["#fbbf24", "#fb923c"] },
+] as const;
 
 const { width } = Dimensions.get("window");
 
 export default function HomePage() {
-  const [userName, setUserName] = useState("Maria");
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [userName, setUserName] = useState("Usuária");
   const [dailyMessage, setDailyMessage] = useState(dailyMessages[0]);
   const [dailyIcon, setDailyIcon] = useState(dailyIcons[0]);
   const [dailyColorScheme, setDailyColorScheme] = useState(dailyColors[0]);
+  const [dailyMessageError, setDailyMessageError] = useState<string | null>(null);
+  const [isRefreshingDailyMessage, setIsRefreshingDailyMessage] = useState(false);
+  const {
+    records: cycleRecords,
+    prediction: cyclePrediction,
+    isLoading: isCycleLoading,
+    error: cycleError,
+  } = useMenstrualCycles();
+  const {
+    reminders: reminderRecords,
+    preferences,
+    isLoading: isRemindersLoading,
+    error: remindersError,
+    refresh: refreshReminders,
+  } = useReminders();
+  const { state: notificationState, error: notificationStateError } =
+    useAppNotificationState();
+  const {
+    data: contentsData,
+    isLoading: isContentsLoading,
+    error: contentsError,
+    refetch: refetchContents,
+  } = useContents();
 
   const isFocused = useIsFocused();
 
   useNavigationState("/user/home");
 
-  const currentDay = 12;
-  const cycleLength = 28;
-
   useEffect(() => {
     async function loadUser() {
-      const savedName = await AsyncStorage.getItem("userName");
-
-      if (savedName) {
-        setUserName(savedName);
-      }
-    }
-
-    loadUser();
-  }, []);
-
-  useEffect(() => {
-    async function loadReminders() {
-      const storedReminders = await AsyncStorage.getItem("userReminders");
-
-      if (!storedReminders) {
-        return;
-      }
-
       try {
-        const parsedReminders = JSON.parse(storedReminders) as Array<{
-          id: string;
-          title: string;
-          emoji: string;
-          day?: string;
-          month?: string;
-          year?: string;
-          date?: string;
-        }>;
-
-        const mappedReminders = parsedReminders.map((item) => ({
-          id: item.id,
-          type: "Lembrete",
-          title: item.title,
-          emoji: item.emoji ?? "📅",
-          date:
-            item.date ||
-            (item.day && item.month && item.year
-              ? new Date(
-                  Number(item.year),
-                  Number(item.month) - 1,
-                  Number(item.day)
-                ).toLocaleDateString("pt-BR", {
-                  day: "numeric",
-                  month: "long",
-                })
-              : ""),
-        }));
-
-        setReminders(mappedReminders);
-      } catch (error) {
-        // ignore invalid stored reminders and keep defaults
+        const profile = await loadLocalUserProfile();
+        if (profile) {
+          setUserName(profile.name);
+        }
+      } catch {
+        // A guarda de rotas já trata perfis ausentes; mantenha um texto neutro aqui.
       }
     }
 
     if (isFocused) {
-      loadReminders();
+      void loadUser();
     }
   }, [isFocused]);
 
   useEffect(() => {
     async function loadDailyMessage() {
-      const today = new Date().toDateString();
-      const storedDate = await AsyncStorage.getItem("dailyMessageDate");
-      const storedMessage = await AsyncStorage.getItem("dailyMessage");
-      const storedIcon = await AsyncStorage.getItem("dailyMessageIcon");
-      const storedColors = await AsyncStorage.getItem("dailyMessageColors");
-
-      if (storedDate === today && storedMessage && storedIcon && storedColors) {
-        setDailyMessage(storedMessage);
-        setDailyIcon(storedIcon);
-        setDailyColorScheme(JSON.parse(storedColors));
-      } else {
-        const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
-        const randomIcon = dailyIcons[Math.floor(Math.random() * dailyIcons.length)];
-        const randomColors = dailyColors[Math.floor(Math.random() * dailyColors.length)];
-
-        setDailyMessage(randomMessage);
-        setDailyIcon(randomIcon);
-        setDailyColorScheme(randomColors);
-
-        await AsyncStorage.setItem("dailyMessageDate", today);
-        await AsyncStorage.setItem("dailyMessage", randomMessage);
-        await AsyncStorage.setItem("dailyMessageIcon", randomIcon);
-        await AsyncStorage.setItem("dailyMessageColors", JSON.stringify(randomColors));
+      try {
+        const record = await getTodayDailyMessage();
+        setDailyMessage(record.message);
+        setDailyIcon(record.icon);
+        setDailyColorScheme(record.colors);
+        setDailyMessageError(null);
+      } catch {
+        setDailyMessageError(
+          "A mensagem não pôde ser atualizada, mas você pode continuar usando o app.",
+        );
       }
     }
 
-    loadDailyMessage();
+    void loadDailyMessage();
   }, []);
 
   const refreshDailyMessage = async () => {
-    const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
-    const randomIcon = dailyIcons[Math.floor(Math.random() * dailyIcons.length)];
-    const randomColors = dailyColors[Math.floor(Math.random() * dailyColors.length)];
+    if (isRefreshingDailyMessage) return;
 
-    setDailyMessage(randomMessage);
-    setDailyIcon(randomIcon);
-    setDailyColorScheme(randomColors);
+    setIsRefreshingDailyMessage(true);
+    setDailyMessageError(null);
 
-    const today = new Date().toDateString();
-    await AsyncStorage.setItem("dailyMessageDate", today);
-    await AsyncStorage.setItem("dailyMessage", randomMessage);
-    await AsyncStorage.setItem("dailyMessageIcon", randomIcon);
-    await AsyncStorage.setItem("dailyMessageColors", JSON.stringify(randomColors));
+    try {
+      const record = await getTodayDailyMessage({ forceRefresh: true });
+      setDailyMessage(record.message);
+      setDailyIcon(record.icon);
+      setDailyColorScheme(record.colors);
+    } catch {
+      setDailyMessageError("Não foi possível trocar a mensagem agora.");
+    } finally {
+      setIsRefreshingDailyMessage(false);
+    }
   };
 
   const quickActions = [
@@ -174,68 +153,71 @@ export default function HomePage() {
     },
   ] as const;
 
-  const contents = [
-    {
-      id: "1",
-      title: "O que é a fase lútea?",
-      category: "Para você hoje",
-      time: "3 min",
-      emoji: "🌙",
-      colors: ["#fb7185", "#fda4af"],
-    },
-    {
-      id: "2",
-      title: "Receitas ricas em magnésio",
-      category: "Alimentação",
-      time: "5 min",
-      emoji: "🥗",
-      colors: ["#34d399", "#2dd4bf"],
-    },
-    {
-      id: "3",
-      title: "Exercícios para TPM",
-      category: "Bem-estar",
-      time: "4 min",
-      emoji: "🧘‍♀️",
-      colors: ["#fbbf24", "#fb923c"],
-    },
-  ];
+  const contents = useMemo(
+    () =>
+      (contentsData?.data ?? []).slice(0, 3).map((content, index) => ({
+        id: String(content.id),
+        title: content.title,
+        category: content.tags.split(",")[0]?.trim() || "Saúde",
+        time: `${content.reading_time} min`,
+        ...contentPalettes[index % contentPalettes.length],
+      })),
+    [contentsData],
+  );
 
-  const getCyclePhase = () => {
-    if (currentDay <= 5) {
-      return {
-        phase: "Menstruação",
-        icon: "🌺",
-        message: "Descanse e se cuide com carinho",
-        colors: ["#ef4444", "#fb7185"],
-      };
-    }
+  const reminders = useMemo(() => {
+    const now = Date.now();
+    const repeatLabels = {
+      daily: "Diariamente",
+      weekly: "Semanalmente",
+      monthly: "Mensalmente",
+      yearly: "Anualmente",
+    } as const;
 
-    if (currentDay <= 13) {
-      return {
-        phase: "Fase Folicular",
-        icon: "🌱",
-        message: "Sua energia está crescendo!",
-        colors: ["#10b981", "#34d399"],
-      };
-    }
+    return sortRemindersChronologically(reminderRecords)
+      .filter(
+        (reminder) =>
+          reminder.repeat !== "none" || reminderToDate(reminder).getTime() > now,
+      )
+      .slice(0, 3)
+      .map((reminder) => ({
+        id: reminder.id,
+        type: "Lembrete",
+        title: reminder.title,
+        emoji: reminder.emoji,
+        date:
+          reminder.repeat === "none"
+            ? reminderToDate(reminder).toLocaleString("pt-BR", {
+                day: "numeric",
+                month: "long",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : `${repeatLabels[reminder.repeat]} às ${reminder.hour}:${reminder.minute}`,
+      }));
+  }, [reminderRecords]);
 
-    if (currentDay <= 16) {
-      return {
-        phase: "Ovulação",
-        icon: "✨",
-        message: "Momento de pico de energia",
-        colors: ["#a78bfa", "#ec4899"],
-      };
-    }
+  const unreadNotificationCount = useMemo(() => {
+    if (notificationStateError) return 0;
 
-    return {
-      phase: "Fase Lútea",
-      icon: "🌙",
-      message: "Acolha suas necessidades",
-      colors: ["#3b82f6", "#6366f1"],
-    };
-  };
+    const readIds = new Set(notificationState.readIds);
+    const dismissedIds = new Set(notificationState.dismissedIds);
+    return buildAppNotifications({
+      reminders: reminderRecords,
+      prediction: cyclePrediction,
+      contents: contentsData?.data ?? [],
+      preferences,
+    }).filter(
+      (item) => !dismissedIds.has(item.id) && !readIds.has(item.id),
+    ).length;
+  }, [
+    contentsData,
+    cyclePrediction,
+    notificationState,
+    notificationStateError,
+    preferences,
+    reminderRecords,
+  ]);
 
   const handleQuickAction = (route: string | null) => {
     if (!route) {
@@ -252,8 +234,79 @@ export default function HomePage() {
     });
   };
 
-  const cycleInfo = getCyclePhase();
-  const cycleProgress = (currentDay / cycleLength) * 100;
+  const today = toLocalDate(new Date());
+  const cycleLength = cyclePrediction?.averageCycleLength ?? 28;
+  const currentCycleDay = cyclePrediction
+    ? calculateCurrentCycleDay(cycleRecords, cycleLength, today)
+    : null;
+  const cycleProgress = currentCycleDay
+    ? Math.min(100, (currentCycleDay / cycleLength) * 100)
+    : 0;
+  const daysUntilNextCycle = cyclePrediction
+    ? daysBetween(today, cyclePrediction.startDate)
+    : null;
+  const hasCycleData = Boolean(
+    !cycleError && cyclePrediction && currentCycleDay
+  );
+  const predictionIsOverdue = Boolean(
+    cyclePrediction && compareLocalDates(today, cyclePrediction.endDate) > 0
+  );
+  const hasCurrentCycleEstimate = hasCycleData && !predictionIsOverdue;
+  const cycleInfo = predictionIsOverdue && !cycleError
+    ? {
+        phase: "Atualize seu calendário",
+        icon: "🗓️",
+        message:
+          "A última previsão não foi confirmada. Registre um novo período para recalcular.",
+        colors: ["#be123c", "#9d174d", "#6b21a8"],
+      }
+    : hasCycleData
+    ? {
+        phase: "Ciclo acompanhado",
+        icon: "🌸",
+        message: `Dia ${currentCycleDay} de um ciclo ${
+          cyclePrediction?.basedOnCycles === 1 ? "estimado" : "médio"
+        } de ${cycleLength} dias`,
+        colors: ["#be123c", "#9d174d", "#6b21a8"],
+      }
+    : {
+        phase: cycleError
+          ? "Calendário indisponível"
+          : isCycleLoading
+            ? "Carregando calendário"
+            : "Comece seu calendário",
+        icon: cycleError ? "⚠️" : "🗓️",
+        message: cycleError
+          ? "Não foi possível carregar os registros locais. Abra o calendário para tentar novamente."
+          : isCycleLoading
+            ? "Buscando seus registros neste aparelho..."
+            : "Registre um período concluído para acompanhar o próximo ciclo.",
+        colors: ["#be123c", "#9d174d", "#6b21a8"],
+      };
+  const nextPeriodLabel = cycleError
+    ? "Verificar calendário"
+    : isCycleLoading
+      ? "Carregando registros"
+      : predictionIsOverdue
+        ? "Previsão não confirmada"
+        : hasCycleData
+          ? "Próxima previsão"
+          : "Registrar primeiro período";
+  const nextPeriodValue = cycleError
+    ? "Verificar"
+    : isCycleLoading
+      ? "..."
+      : predictionIsOverdue
+        ? "Atualizar"
+        : daysUntilNextCycle === null
+          ? "Começar"
+          : daysUntilNextCycle === 0
+            ? "Hoje"
+            : daysUntilNextCycle < 0
+              ? "Em curso"
+              : `${daysUntilNextCycle} ${
+                  daysUntilNextCycle === 1 ? "dia" : "dias"
+                }`;
 
   return (
     <LinearGradient
@@ -271,6 +324,8 @@ export default function HomePage() {
       >
         <View style={styles.header}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir perfil de ${userName}`}
             activeOpacity={0.85}
             style={styles.headerLeft}
             onPress={() => router.push("/user/profile")}
@@ -286,17 +341,27 @@ export default function HomePage() {
                 <Text>🌸</Text>
               </View>
             </View>
-            <View>
+            <View style={styles.headerCopy}>
               <Text style={styles.greeting}>Oi, que bom ver você! 💕</Text>
-              <Text style={styles.userName}>{userName}</Text>
+              <Text numberOfLines={1} style={styles.userName}>{userName}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Notificações. ${unreadNotificationCount} ${
+              unreadNotificationCount === 1 ? "não lida" : "não lidas"
+            }`}
             style={styles.notificationButton}
             onPress={() => router.push("/user/notifications")}
           >
             <Ionicons name="notifications" size={24} color="#374151" />
-            <View style={styles.notificationDot} />
+            {unreadNotificationCount > 0 ? (
+              <View style={styles.notificationDot}>
+                <Text style={styles.notificationDotText}>
+                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                </Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
         </View>
 
@@ -309,8 +374,10 @@ export default function HomePage() {
               <View style={styles.cycleIconBox}>
                 <Text style={styles.cycleEmoji}>{cycleInfo.icon}</Text>
               </View>
-              <View>
-                <Text style={styles.cycleLabel}>Você está na</Text>
+              <View style={styles.cycleTextContent}>
+                <Text style={styles.cycleLabel}>
+                  {hasCycleData ? "SEU CALENDÁRIO" : "MEU CICLO"}
+                </Text>
                 <Text style={styles.cycleTitle}>{cycleInfo.phase}</Text>
               </View>
             </View>
@@ -318,30 +385,57 @@ export default function HomePage() {
 
           <View style={styles.messageBox}>
             <Text style={styles.messageText}>{cycleInfo.message}</Text>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Progresso do ciclo</Text>
-              <Text style={styles.progressValue}>
-                {Math.round(cycleProgress)}%
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${cycleProgress}%` }]}
-              />
-            </View>
+            {hasCurrentCycleEstimate && (
+              <>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>Progresso estimado</Text>
+                  <Text style={styles.progressValue}>
+                    {Math.round(cycleProgress)}%
+                  </Text>
+                </View>
+                <View
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{
+                    min: 0,
+                    max: 100,
+                    now: Math.round(cycleProgress),
+                  }}
+                  style={styles.progressBar}
+                >
+                  <View
+                    style={[styles.progressFill, { width: `${cycleProgress}%` }]}
+                  />
+                </View>
+              </>
+            )}
           </View>
 
-          <View style={styles.nextPeriod}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityHint="Abrir calendário menstrual"
+            activeOpacity={0.82}
+            style={styles.nextPeriod}
+            onPress={() => router.push("/user/calendar")}
+          >
             <View style={styles.nextPeriodLeft}>
               <View style={styles.droplet}>
-                <Ionicons name="water" size={18} color="#f43f5e" />
+                <Ionicons
+                  name={hasCycleData ? "water" : cycleError ? "alert" : "add"}
+                  size={18}
+                  color="#f43f5e"
+                />
               </View>
-              <Text style={styles.nextPeriodText}>Próxima menstruação</Text>
+              <View style={styles.nextPeriodCopy}>
+                <Text style={styles.nextPeriodText}>{nextPeriodLabel}</Text>
+                {hasCycleData && cyclePrediction && (
+                  <Text style={styles.nextPeriodDate}>
+                    {formatShortDate(cyclePrediction.startDate)}
+                  </Text>
+                )}
+              </View>
             </View>
-            <Text style={styles.nextPeriodDays}>
-              {cycleLength - currentDay} dias
-            </Text>
-          </View>
+            <Text style={styles.nextPeriodDays}>{nextPeriodValue}</Text>
+          </TouchableOpacity>
         </LinearGradient>
 
         <View style={styles.sectionHeader}>
@@ -377,8 +471,12 @@ export default function HomePage() {
           <View style={styles.dailyHeader}>
             <Text style={styles.dailyTitle}>{dailyIcon} Mensagem do Dia</Text>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Trocar mensagem do dia"
+              accessibilityState={{ busy: isRefreshingDailyMessage }}
               style={styles.refreshButton}
               onPress={refreshDailyMessage}
+              disabled={isRefreshingDailyMessage}
             >
               <Ionicons name="refresh" size={20} color="#fff" />
             </TouchableOpacity>
@@ -386,6 +484,11 @@ export default function HomePage() {
           <Text style={styles.dailyText}>
             &ldquo;{dailyMessage}&rdquo;
           </Text>
+          {dailyMessageError ? (
+            <Text accessibilityRole="alert" style={styles.dailyErrorText}>
+              {dailyMessageError}
+            </Text>
+          ) : null}
         </LinearGradient>
 
         <View style={styles.sectionHeader}>
@@ -399,7 +502,22 @@ export default function HomePage() {
           </TouchableOpacity>
         </View>
 
-        {reminders.length === 0 ? (
+        {isRemindersLoading ? (
+          <View style={styles.emptyRemindersContainer}>
+            <Text style={styles.emptyRemindersSubtitle}>Carregando lembretes...</Text>
+          </View>
+        ) : remindersError ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Tentar carregar lembretes novamente"
+            style={styles.emptyRemindersContainer}
+            onPress={() => void refreshReminders()}
+          >
+            <Text style={styles.remindersErrorText}>
+              {remindersError} Toque para tentar novamente.
+            </Text>
+          </TouchableOpacity>
+        ) : reminders.length === 0 ? (
           <View style={styles.emptyRemindersContainer}>
             <Text style={styles.emptyRemindersEmoji}>📭</Text>
             <Text style={styles.emptyRemindersTitle}>Você não tem nenhum lembrete</Text>
@@ -408,9 +526,9 @@ export default function HomePage() {
             </Text>
           </View>
         ) : (
-          reminders.map((item, index) => (
+          reminders.map((item) => (
             <TouchableOpacity
-              key={index}
+              key={item.id}
               activeOpacity={0.86}
               style={styles.reminderCard}
               onPress={() => router.push("/user/reminders")}
@@ -440,7 +558,28 @@ export default function HomePage() {
           <Text style={styles.sectionTitle}>Últimos conteúdos</Text>
         </View>
 
-        {contents.map((item) => (
+        {isContentsLoading ? (
+          <View style={styles.inlineStatusCard}>
+            <Text style={styles.inlineStatusText}>Carregando artigos...</Text>
+          </View>
+        ) : contentsError ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Tentar carregar artigos novamente"
+            style={styles.inlineStatusCard}
+            onPress={() => void refetchContents()}
+          >
+            <Text style={styles.inlineErrorText}>
+              Não foi possível carregar os artigos. Toque para tentar novamente.
+            </Text>
+          </TouchableOpacity>
+        ) : contents.length === 0 ? (
+          <View style={styles.inlineStatusCard}>
+            <Text style={styles.inlineStatusText}>
+              Nenhum artigo publicado no momento.
+            </Text>
+          </View>
+        ) : contents.map((item) => (
           <TouchableOpacity
             key={item.id}
             activeOpacity={0.85}
@@ -480,9 +619,12 @@ const styles = StyleSheet.create({
   },
 
   scroll: {
+    alignSelf: "center",
+    maxWidth: 760,
     paddingTop: 58,
     paddingBottom: 120,
     paddingHorizontal: 22,
+    width: "100%",
   },
 
   blobTop: {
@@ -516,6 +658,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+  },
+
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
   },
 
   avatarContainer: {
@@ -575,6 +722,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     color: "#111827",
+    flexShrink: 1,
   },
 
   notificationButton: {
@@ -601,12 +749,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 13,
     right: 13,
-    width: 10,
-    height: 10,
+    minWidth: 18,
+    height: 18,
     borderRadius: 999,
     backgroundColor: "#f43f5e",
     borderWidth: 2,
     borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+
+  notificationDotText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "900",
   },
 
   cycleCard: {
@@ -663,6 +820,31 @@ const styles = StyleSheet.create({
   cycleLeft: {
     flexDirection: "row",
     alignItems: "center",
+  },
+
+  inlineStatusCard: {
+    minHeight: 72,
+    borderRadius: 22,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+    marginBottom: 16,
+  },
+
+  inlineStatusText: {
+    color: "#4b5563",
+    textAlign: "center",
+  },
+
+  inlineErrorText: {
+    color: "#b91c1c",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  cycleTextContent: {
+    flex: 1,
   },
 
   cycleIconBox: {
@@ -749,6 +931,12 @@ const styles = StyleSheet.create({
   nextPeriodLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+  },
+
+  nextPeriodCopy: {
+    flex: 1,
+    flexShrink: 1,
   },
 
   droplet: {
@@ -765,13 +953,22 @@ const styles = StyleSheet.create({
 
   nextPeriodText: {
     color: "#fff",
+    flexShrink: 1,
     fontWeight: "700",
+  },
+
+  nextPeriodDate: {
+    color: "#fdf2f8",
+    fontSize: 11,
+    marginTop: 3,
   },
 
   nextPeriodDays: {
     color: "#fff",
     fontWeight: "900",
     fontSize: 18,
+    flexShrink: 0,
+    marginLeft: 8,
   },
 
   sectionHeader: {
@@ -879,9 +1076,9 @@ const styles = StyleSheet.create({
   },
 
   refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
@@ -891,6 +1088,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     lineHeight: 30,
+  },
+
+  dailyErrorText: {
+    color: "#fff",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
+    fontWeight: "600",
   },
 
   reminderCard: {
@@ -943,7 +1148,7 @@ const styles = StyleSheet.create({
 
   reminderType: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#6b7280",
     fontWeight: "700",
     marginBottom: 4,
   },
@@ -1068,6 +1273,13 @@ const styles = StyleSheet.create({
   emptyRemindersSubtitle: {
     fontSize: 14,
     color: "#6b7280",
+    textAlign: "center",
+  },
+
+  remindersErrorText: {
+    color: "#b91c1c",
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
   },
 });

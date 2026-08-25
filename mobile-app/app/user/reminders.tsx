@@ -1,24 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Platform,
-  KeyboardAvoidingView,
-  Keyboard,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Plus, X, Calendar, Clock, Trash2, Edit2, Check } from 'lucide-react-native';
-import { useNavigationState } from '../../hooks/useNavigationState';
+  View,
+} from "react-native";
+import {
+  BellOff,
+  Calendar,
+  Check,
+  Clock,
+  Edit2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react-native";
+import { useNavigationState } from "../../hooks/useNavigationState";
+import { useReminders } from "../../hooks/useReminders";
+import {
+  Reminder,
+  ReminderInput,
+  ReminderRepeat,
+  reminderToDate,
+  sortRemindersChronologically,
+  validateReminderInput,
+} from "../../services/reminders";
 
-interface Reminder {
-  id: string;
+interface ReminderFormState {
   title: string;
   day: string;
   month: string;
@@ -26,686 +41,694 @@ interface Reminder {
   hour: string;
   minute: string;
   emoji: string;
-  notes?: string;
+  notes: string;
+  repeat: ReminderRepeat;
 }
 
-const REMINDERS_STORAGE_KEY = 'userReminders';
-
-const defaultReminders: Reminder[] = [
-  {
-    id: '1',
-    title: 'Papanicolau',
-    day: '22',
-    month: '03',
-    year: '2026',
-    hour: '14',
-    minute: '00',
-    emoji: '🏥',
-    notes: 'Clínica Dr. Silva',
-  },
-  {
-    id: '2',
-    title: 'Ginecologista - Dra. Ana',
-    day: '05',
-    month: '04',
-    year: '2026',
-    hour: '09',
-    minute: '30',
-    emoji: '👩‍⚕️',
-    notes: 'Consulta de rotina',
-  },
+const EMOJI_OPTIONS = [
+  "🏥",
+  "👩‍⚕️",
+  "💊",
+  "📅",
+  "🩺",
+  "💉",
+  "🧪",
+  "❤️",
+  "🌸",
+  "🧘‍♀️",
+  "🥗",
+  "🌙",
 ];
 
-export default function RemindersPage() {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [isReady, setIsReady] = useState(false);
+const REPEAT_OPTIONS: { value: ReminderRepeat; label: string }[] = [
+  { value: "none", label: "Uma vez" },
+  { value: "daily", label: "Diário" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensal" },
+  { value: "yearly", label: "Anual" },
+];
 
+const REPEAT_LABELS: Record<ReminderRepeat, string> = {
+  none: "Não se repete",
+  daily: "Repete todos os dias",
+  weekly: "Repete toda semana",
+  monthly: "Repete todo mês",
+  yearly: "Repete todo ano",
+};
+
+function createInitialForm(): ReminderFormState {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return {
+    title: "",
+    day: String(tomorrow.getDate()).padStart(2, "0"),
+    month: String(tomorrow.getMonth() + 1).padStart(2, "0"),
+    year: String(tomorrow.getFullYear()),
+    hour: "09",
+    minute: "00",
+    emoji: "📅",
+    notes: "",
+    repeat: "none",
+  };
+}
+
+function reminderToForm(reminder: Reminder): ReminderFormState {
+  return {
+    title: reminder.title,
+    day: reminder.day,
+    month: reminder.month,
+    year: reminder.year,
+    hour: reminder.hour,
+    minute: reminder.minute,
+    emoji: reminder.emoji,
+    notes: reminder.notes ?? "",
+    repeat: reminder.repeat,
+  };
+}
+
+export default function RemindersPage() {
+  const {
+    reminders,
+    preferences,
+    notificationStatus,
+    isLoading,
+    isSaving,
+    error,
+    refresh,
+    addReminder,
+    editReminder,
+    removeReminder,
+  } = useReminders();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    day: '',
-    month: '',
-    year: '',
-    hour: '00',
-    minute: '00',
-    emoji: '📅',
-    notes: '',
-  });
+  const [formData, setFormData] = useState<ReminderFormState>(createInitialForm);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  useNavigationState('/user/reminders');
+  useNavigationState("/user/reminders");
 
-  const emojiOptions = [
-    '🏥',
-    '👩‍⚕️',
-    '💊',
-    '📅',
-    '🩺',
-    '💉',
-    '🧪',
-    '❤️',
-    '🌸',
-    '💕',
-    '🎀',
-    '💝',
-    '🩷',
-    '🌺',
-    '🧘‍♀️',
-    '💆‍♀️',
-    '🍎',
-    '🥗',
-    '💪',
-    '🌙',
-    '☀️',
-    '⭐',
-    '✨',
-    '🌈',
-  ];
+  const sortedReminders = useMemo(
+    () => sortRemindersChronologically(reminders),
+    [reminders],
+  );
 
-  const handleSubmit = () => {
-    const day = Number(formData.day);
-    const month = Number(formData.month);
-    const year = Number(formData.year);
-    const hour = Number(formData.hour);
-    const minute = Number(formData.minute);
-
-    if (
-      !formData.title.trim() ||
-      !formData.day.trim() ||
-      !formData.month.trim() ||
-      !formData.year.trim() ||
-      !formData.hour.trim() ||
-      !formData.minute.trim() ||
-      day < 1 ||
-      day > 31 ||
-      month < 1 ||
-      month > 12 ||
-      year < 1900 ||
-      hour < 0 ||
-      hour > 23 ||
-      minute < 0 ||
-      minute > 59
-    ) {
-      return;
-    }
-
-    const normalizedFormData = {
-      ...formData,
-      day: formData.day.padStart(2, '0'),
-      month: formData.month.padStart(2, '0'),
-      hour: formData.hour.padStart(2, '0'),
-      minute: formData.minute.padStart(2, '0'),
-    };
-
-    if (editingId) {
-      setReminders(
-        reminders.map((r) =>
-          r.id === editingId ? { ...normalizedFormData, id: editingId } : r
-        )
-      );
-    } else {
-      const newReminder: Reminder = {
-        ...normalizedFormData,
-        id: Date.now().toString(),
-      };
-      setReminders([...reminders, newReminder]);
-    }
-
-    closeModal();
-  };
-
-  const handleEdit = (reminder: Reminder) => {
-    setFormData({
-      title: reminder.title,
-      day: reminder.day,
-      month: reminder.month,
-      year: reminder.year,
-      hour: reminder.hour,
-      minute: reminder.minute,
-      emoji: reminder.emoji,
-      notes: reminder.notes || '',
-    });
-    setEditingId(reminder.id);
+  const openNewReminder = () => {
+    setEditingId(null);
+    setFormData(createInitialForm());
+    setFormError(null);
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    setReminders(reminders.filter((r) => r.id !== id));
+  const openEditReminder = (reminder: Reminder) => {
+    setEditingId(reminder.id);
+    setFormData(reminderToForm(reminder));
+    setFormError(null);
+    setShowModal(true);
   };
 
   const closeModal = () => {
+    if (isSaving) return;
     setShowModal(false);
     setEditingId(null);
-    setFormData({
-      title: '',
-      day: '',
-      month: '',
-      year: '',
-      hour: '00',
-      minute: '00',
-      emoji: '📅',
-      notes: '',
-    });
+    setFormError(null);
   };
 
-  useEffect(() => {
-    async function loadReminders() {
-      try {
-        const storedReminders = await AsyncStorage.getItem(REMINDERS_STORAGE_KEY);
-        if (storedReminders) {
-          setReminders(JSON.parse(storedReminders));
-        } else {
-          setReminders(defaultReminders);
-        }
-      } catch (error) {
-        setReminders(defaultReminders);
-      } finally {
-        setIsReady(true);
+  const handleSubmit = async () => {
+    if (isSaving) return;
+    setFormError(null);
+
+    try {
+      const input: ReminderInput = validateReminderInput(formData, {
+        requireFuture: !editingId || formData.repeat === "none",
+      });
+      if (editingId) {
+        await editReminder(editingId, input);
+      } else {
+        await addReminder(input);
       }
+      setShowModal(false);
+      setEditingId(null);
+      setFormData(createInitialForm());
+      void refresh();
+    } catch (submitError) {
+      setFormError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Não foi possível salvar o lembrete.",
+      );
     }
-
-    loadReminders();
-  }, []);
-
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    AsyncStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-  }, [reminders, isReady]);
-
-  const formatDate = (reminder: Reminder) => {
-    const date = new Date(
-      Number(reminder.year),
-      Number(reminder.month) - 1,
-      Number(reminder.day)
-    );
-    return date.toLocaleDateString('pt-BR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
   };
 
-  const formatTime = (hour: string, minute: string) =>
-    `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  const confirmDelete = (reminder: Reminder) => {
+    Alert.alert(
+      "Excluir lembrete?",
+      `“${reminder.title}” será removido e o alerta agendado será cancelado.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => {
+            void removeReminder(reminder.id).catch((deleteError) => {
+              Alert.alert(
+                "Não foi possível excluir",
+                deleteError instanceof Error
+                  ? deleteError.message
+                  : "Tente novamente.",
+              );
+            });
+          },
+        },
+      ],
+    );
+  };
 
-  const sortedReminders = [...reminders].sort((a, b) => {
-    const aDate = new Date(
-      Number(a.year),
-      Number(a.month) - 1,
-      Number(a.day),
-      Number(a.hour),
-      Number(a.minute)
-    ).getTime();
+  const formatDate = (reminder: Reminder) =>
+    reminderToDate(reminder).toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
-    const bDate = new Date(
-      Number(b.year),
-      Number(b.month) - 1,
-      Number(b.day),
-      Number(b.hour),
-      Number(b.minute)
-    ).getTime();
-
-    return aDate - bDate;
-  });
+  const notificationMessage = !preferences.appointmentReminders
+    ? "Alertas do sistema estão desativados nas preferências. Os registros continuam salvos aqui."
+    : notificationStatus === "unsupported"
+      ? "Neste ambiente, os lembretes ficam salvos, mas alertas do sistema exigem uma versão instalada do app."
+      : notificationStatus === "permission-denied"
+        ? "A permissão de notificações foi negada. Ative-a nos ajustes do aparelho para receber alertas."
+        : null;
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Meus Lembretes</Text>
-          <Text style={styles.subtitle}>Gerencie seus compromissos de saúde</Text>
+    <View style={styles.screen}>
+      <View style={styles.contentWidth}>
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
+            <Text accessibilityRole="header" style={styles.title}>
+              Meus lembretes
+            </Text>
+            <Text style={styles.subtitle}>Compromissos salvos neste aparelho</Text>
+          </View>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar lembrete"
+            style={styles.addButton}
+            onPress={openNewReminder}
+          >
+            <Plus color="#fff" size={24} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowModal(true)}>
-          <Plus color="#fff" size={22} />
-        </TouchableOpacity>
-      </View>
+        {notificationMessage ? (
+          <View style={styles.notice}>
+            <BellOff color="#9f1239" size={20} />
+            <Text style={styles.noticeText}>{notificationMessage}</Text>
+          </View>
+        ) : null}
 
-      {sortedReminders.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📭</Text>
-          <Text style={styles.emptyTitle}>Nenhum lembrete ainda</Text>
-          <Text style={styles.emptySubtitle}>
-            Adicione seu primeiro lembrete clicando no botão +
-          </Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.listContainer}>
-          {sortedReminders.map((reminder) => (
-            <View key={reminder.id} style={styles.card}>
-              <View style={styles.cardLeft}>
+        {error ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Tentar carregar lembretes novamente"
+            style={styles.errorBanner}
+            onPress={() => void refresh()}
+          >
+            <Text accessibilityRole="alert" style={styles.errorBannerText}>
+              {error} Toque para tentar novamente.
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {isLoading ? (
+          <View accessibilityLiveRegion="polite" style={styles.centerState}>
+            <ActivityIndicator color="#ec4899" size="large" />
+            <Text style={styles.centerStateText}>Carregando lembretes...</Text>
+          </View>
+        ) : sortedReminders.length === 0 ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyEmoji}>📭</Text>
+            <Text style={styles.emptyTitle}>Nenhum lembrete ainda</Text>
+            <Text style={styles.centerStateText}>
+              Use o botão de adicionar para registrar uma consulta, exame ou outro compromisso.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {sortedReminders.map((reminder) => (
+              <View key={reminder.id} style={styles.card}>
                 <View style={styles.emojiCircle}>
                   <Text style={styles.emojiText}>{reminder.emoji}</Text>
                 </View>
-              </View>
 
-              <View style={styles.cardBody}>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>Lembrete</Text>
-                </View>
-                <Text style={styles.cardTitle}>{reminder.title}</Text>
-                <View style={styles.cardDetails}>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{reminder.title}</Text>
                   <View style={styles.detailRow}>
-                    <Calendar color="#6b7280" size={14} />
+                    <Calendar color="#4b5563" size={15} />
                     <Text style={styles.detailText}>{formatDate(reminder)}</Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Clock color="#6b7280" size={14} />
-                    <Text style={styles.detailText}>{formatTime(reminder.hour, reminder.minute)}</Text>
+                    <Clock color="#4b5563" size={15} />
+                    <Text style={styles.detailText}>
+                      {reminder.hour}:{reminder.minute} • {REPEAT_LABELS[reminder.repeat]}
+                    </Text>
                   </View>
                   {reminder.notes ? (
                     <Text style={styles.notesText}>{reminder.notes}</Text>
                   ) : null}
+                  <Text style={styles.scheduleStatus}>
+                    {reminder.notificationId
+                      ? "Alerta do sistema agendado"
+                      : "Sem alerta do sistema"}
+                  </Text>
+                </View>
+
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Editar ${reminder.title}`}
+                    style={styles.actionButton}
+                    onPress={() => openEditReminder(reminder)}
+                  >
+                    <Edit2 color="#1d4ed8" size={18} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Excluir ${reminder.title}`}
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => confirmDelete(reminder)}
+                  >
+                    <Trash2 color="#b91c1c" size={18} />
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.cardActions}>
-                <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(reminder)}>
-                  <Edit2 color="#2563eb" size={18} />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(reminder.id)}>
-                  <Trash2 color="#dc2626" size={18} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      <Modal visible={showModal} animationType="fade" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <Pressable style={styles.modalOverlay} onPress={closeModal}>
-            <View style={styles.modalBackground} />
-          </Pressable>
-
-          <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{editingId ? 'Editar Lembrete' : 'Novo Lembrete'}</Text>
-            <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-              <X color="#374151" size={20} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
-            <Text style={styles.label}>Ícone</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiRow}>
-              {emojiOptions.map((emoji) => (
-                <TouchableOpacity
-                  key={emoji}
-                  style={[
-                    styles.emojiButton,
-                    formData.emoji === emoji && styles.emojiButtonActive,
-                  ]}
-                  onPress={() => setFormData({ ...formData, emoji })}
-                >
-                  <Text style={styles.emojiButtonText}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.label}>Título</Text>
-            <TextInput
-              value={formData.title}
-              onChangeText={(value) => setFormData({ ...formData, title: value })}
-              placeholder="Ex: Consulta com ginecologista"
-              placeholderTextColor="#9ca3af"
-              style={styles.input}
-            />
-
-            <Text style={styles.label}>Data</Text>
-            <View style={styles.dateRow}>
-              <TextInput
-                value={formData.day}
-                onChangeText={(value) => setFormData({ ...formData, day: value.replace(/[^0-9]/g, '') })}
-                placeholder="DD"
-                placeholderTextColor="#9ca3af"
-                style={[styles.input, styles.smallInput]}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <TextInput
-                value={formData.month}
-                onChangeText={(value) => setFormData({ ...formData, month: value.replace(/[^0-9]/g, '') })}
-                placeholder="MM"
-                placeholderTextColor="#9ca3af"
-                style={[styles.input, styles.smallInput]}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <TextInput
-                value={formData.year}
-                onChangeText={(value) => setFormData({ ...formData, year: value.replace(/[^0-9]/g, '') })}
-                placeholder="AAAA"
-                placeholderTextColor="#9ca3af"
-                style={[styles.input, styles.mediumInput]}
-                keyboardType="numeric"
-                maxLength={4}
-              />
-            </View>
-
-            <Text style={styles.label}>Horário</Text>
-            <View style={styles.dateRow}>
-              <TextInput
-                value={formData.hour}
-                onChangeText={(value) => setFormData({ ...formData, hour: value.replace(/[^0-9]/g, '') })}
-                placeholder="HH"
-                placeholderTextColor="#9ca3af"
-                style={[styles.input, styles.smallInput]}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <TextInput
-                value={formData.minute}
-                onChangeText={(value) => setFormData({ ...formData, minute: value.replace(/[^0-9]/g, '') })}
-                placeholder="MM"
-                placeholderTextColor="#9ca3af"
-                style={[styles.input, styles.smallInput]}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-
-            <Text style={styles.label}>Observações (opcional)</Text>
-            <TextInput
-              value={formData.notes}
-              onChangeText={(value) => setFormData({ ...formData, notes: value })}
-              placeholder="Ex: Levar exames anteriores"
-              placeholderTextColor="#9ca3af"
-              style={[styles.input, styles.textArea]}
-              multiline
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={closeModal}>
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSubmit}>
-                <View style={styles.saveButtonContent}>
-                  <Check color="#fff" size={16} />
-                  <Text style={styles.saveButtonText}>{editingId ? 'Salvar' : 'Adicionar'}</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+            ))}
           </ScrollView>
+        )}
+      </View>
+
+      <Modal
+        visible={showModal}
+        animationType="fade"
+        transparent
+        onRequestClose={closeModal}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View accessibilityViewIsModal style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text accessibilityRole="header" style={styles.modalTitle}>
+                {editingId ? "Editar lembrete" : "Novo lembrete"}
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Fechar formulário"
+                style={styles.closeButton}
+                onPress={closeModal}
+              >
+                <X color="#374151" size={22} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.label}>Ícone</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.emojiRow}
+              >
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Usar ícone ${emoji}`}
+                    accessibilityState={{ selected: formData.emoji === emoji }}
+                    key={emoji}
+                    style={[
+                      styles.emojiButton,
+                      formData.emoji === emoji && styles.emojiButtonActive,
+                    ]}
+                    onPress={() => setFormData((current) => ({ ...current, emoji }))}
+                  >
+                    <Text style={styles.emojiButtonText}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {formData.repeat !== "none" ? (
+                <Text style={styles.repeatHint}>
+                  Para iniciar uma repetição nova, escolha a próxima ocorrência desse horário.
+                </Text>
+              ) : null}
+
+              <Text style={styles.label}>Título</Text>
+              <TextInput
+                accessibilityLabel="Título do lembrete"
+                value={formData.title}
+                onChangeText={(title) => setFormData((current) => ({ ...current, title }))}
+                placeholder="Ex.: Consulta com ginecologista"
+                placeholderTextColor="#6b7280"
+                style={styles.input}
+                maxLength={120}
+              />
+
+              <Text style={styles.label}>Data</Text>
+              <View style={styles.fieldsRow}>
+                <TextInput
+                  accessibilityLabel="Dia"
+                  value={formData.day}
+                  onChangeText={(day) =>
+                    setFormData((current) => ({ ...current, day: day.replace(/[^0-9]/g, "") }))
+                  }
+                  placeholder="DD"
+                  placeholderTextColor="#6b7280"
+                  style={[styles.input, styles.numberInput]}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <TextInput
+                  accessibilityLabel="Mês"
+                  value={formData.month}
+                  onChangeText={(month) =>
+                    setFormData((current) => ({ ...current, month: month.replace(/[^0-9]/g, "") }))
+                  }
+                  placeholder="MM"
+                  placeholderTextColor="#6b7280"
+                  style={[styles.input, styles.numberInput]}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <TextInput
+                  accessibilityLabel="Ano"
+                  value={formData.year}
+                  onChangeText={(year) =>
+                    setFormData((current) => ({ ...current, year: year.replace(/[^0-9]/g, "") }))
+                  }
+                  placeholder="AAAA"
+                  placeholderTextColor="#6b7280"
+                  style={[styles.input, styles.yearInput]}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+
+              <Text style={styles.label}>Horário</Text>
+              <View style={styles.fieldsRow}>
+                <TextInput
+                  accessibilityLabel="Hora"
+                  value={formData.hour}
+                  onChangeText={(hour) =>
+                    setFormData((current) => ({ ...current, hour: hour.replace(/[^0-9]/g, "") }))
+                  }
+                  placeholder="HH"
+                  placeholderTextColor="#6b7280"
+                  style={[styles.input, styles.numberInput]}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <TextInput
+                  accessibilityLabel="Minuto"
+                  value={formData.minute}
+                  onChangeText={(minute) =>
+                    setFormData((current) => ({ ...current, minute: minute.replace(/[^0-9]/g, "") }))
+                  }
+                  placeholder="MM"
+                  placeholderTextColor="#6b7280"
+                  style={[styles.input, styles.numberInput]}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <View style={styles.fieldSpacer} />
+              </View>
+
+              <Text style={styles.label}>Repetição</Text>
+              <ScrollView
+                horizontal
+                contentContainerStyle={styles.repeatRow}
+                showsHorizontalScrollIndicator={false}
+              >
+                {REPEAT_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: formData.repeat === option.value }}
+                    key={option.value}
+                    style={[
+                      styles.repeatButton,
+                      formData.repeat === option.value && styles.repeatButtonActive,
+                    ]}
+                    onPress={() =>
+                      setFormData((current) => ({ ...current, repeat: option.value }))
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.repeatButtonText,
+                        formData.repeat === option.value && styles.repeatButtonTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.label}>Observações (opcional)</Text>
+              <TextInput
+                accessibilityLabel="Observações do lembrete"
+                value={formData.notes}
+                onChangeText={(notes) => setFormData((current) => ({ ...current, notes }))}
+                placeholder="Ex.: Levar exames anteriores"
+                placeholderTextColor="#6b7280"
+                style={[styles.input, styles.textArea]}
+                multiline
+                maxLength={1000}
+              />
+
+              {formError ? (
+                <Text accessibilityRole="alert" style={styles.formError}>
+                  {formError}
+                </Text>
+              ) : null}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={isSaving}
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeModal}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{ busy: isSaving }}
+                  disabled={isSaving}
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={() => void handleSubmit()}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={styles.saveButtonContent}>
+                      <Check color="#fff" size={18} />
+                      <Text style={styles.saveButtonText}>
+                        {editingId ? "Salvar" : "Adicionar"}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#fff5f8',
-  },
+  screen: { flex: 1, backgroundColor: "#fff5f8" },
+  contentWidth: { alignSelf: "center", flex: 1, maxWidth: 760, width: "100%" },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 24 : 20,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: '#6b7280',
-    fontSize: 14,
-  },
+  headerCopy: { flex: 1, marginRight: 12 },
+  title: { color: "#111827", fontSize: 27, fontWeight: "800" },
+  subtitle: { color: "#4b5563", fontSize: 14, marginTop: 4 },
   addButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 24,
-    backgroundColor: '#ec4899',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    backgroundColor: "#ec4899",
+    borderRadius: 22,
+    height: 52,
+    justifyContent: "center",
+    width: 52,
   },
-  emptyContainer: {
+  notice: {
+    alignItems: "flex-start",
+    backgroundColor: "#fff1f2",
+    borderColor: "#fecdd3",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    marginHorizontal: 20,
+    padding: 13,
+  },
+  noticeText: { color: "#881337", flex: 1, fontSize: 13, lineHeight: 19, marginLeft: 10 },
+  errorBanner: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#fecaca",
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+    marginHorizontal: 20,
+    padding: 12,
+  },
+  errorBannerText: { color: "#991b1b", fontSize: 13, lineHeight: 19, textAlign: "center" },
+  centerState: {
+    alignItems: "center",
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    paddingVertical: 32,
   },
-  emptyEmoji: {
-    fontSize: 56,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#111827',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
+  centerStateText: { color: "#4b5563", lineHeight: 21, marginTop: 12, textAlign: "center" },
+  emptyEmoji: { fontSize: 54 },
+  emptyTitle: { color: "#111827", fontSize: 20, fontWeight: "800", marginTop: 14 },
+  listContainer: { paddingBottom: 32, paddingHorizontal: 20 },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    shadowColor: '#f9a8d4',
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  cardLeft: {
-    marginRight: 12,
+    alignItems: "flex-start",
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    elevation: 3,
+    flexDirection: "row",
+    marginBottom: 14,
+    padding: 16,
+    shadowColor: "#ec4899",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
   },
   emojiCircle: {
-    width: 60,
-    height: 60,
+    alignItems: "center",
+    backgroundColor: "#f3e8ff",
     borderRadius: 18,
-    backgroundColor: '#d8b4fe',
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 56,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 56,
   },
-  emojiText: {
-    fontSize: 26,
-  },
-  cardBody: {
-    flex: 1,
-  },
-  tag: {
-    backgroundColor: '#fce7f3',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  tagText: {
-    color: '#be185d',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  cardDetails: {
-    gap: 6,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  detailText: {
-    color: '#6b7280',
-    fontSize: 13,
-  },
-  notesText: {
-    color: '#374151',
-    fontSize: 14,
-    marginTop: 8,
-  },
-  cardActions: {
-    marginLeft: 12,
-    gap: 12,
-  },
+  emojiText: { fontSize: 25 },
+  cardBody: { flex: 1 },
+  cardTitle: { color: "#111827", fontSize: 16, fontWeight: "800", marginBottom: 8 },
+  detailRow: { alignItems: "center", flexDirection: "row", marginBottom: 5 },
+  detailText: { color: "#4b5563", flex: 1, fontSize: 13, lineHeight: 18, marginLeft: 7 },
+  notesText: { color: "#374151", fontSize: 13, lineHeight: 19, marginTop: 5 },
+  scheduleStatus: { color: "#7e22ce", fontSize: 11, fontWeight: "700", marginTop: 8 },
+  cardActions: { marginLeft: 8 },
   actionButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 15,
+    height: 44,
+    justifyContent: "center",
+    marginBottom: 8,
+    width: 44,
   },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-  },
+  deleteButton: { backgroundColor: "#fee2e2" },
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  modalBackground: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
     flex: 1,
+    justifyContent: "center",
+    padding: 16,
   },
   modalContainer: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    top: '15%',
-    bottom: '10%',
-    borderRadius: 28,
-    backgroundColor: '#ffffff',
-    overflow: 'hidden',
-    elevation: 10,
+    backgroundColor: "#fff",
+    borderRadius: 26,
+    maxHeight: "92%",
+    maxWidth: 560,
+    overflow: "hidden",
+    width: "100%",
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
+    alignItems: "center",
+    borderBottomColor: "#e5e7eb",
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 18,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBody: {
-    paddingHorizontal: 20,
-  },
-  modalBodyContent: {
-    paddingBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  emojiRow: {
-    marginBottom: 16,
-  },
+  modalTitle: { color: "#111827", fontSize: 20, fontWeight: "800" },
+  closeButton: { alignItems: "center", borderRadius: 22, height: 44, justifyContent: "center", width: 44 },
+  modalBody: { padding: 20, paddingBottom: 28 },
+  label: { color: "#374151", fontSize: 14, fontWeight: "700", marginBottom: 8 },
+  emojiRow: { paddingBottom: 16 },
   emojiButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
+    alignItems: "center",
+    backgroundColor: "#f3f4f6",
+    borderRadius: 16,
+    height: 48,
+    justifyContent: "center",
+    marginRight: 9,
+    width: 48,
   },
-  emojiButtonActive: {
-    backgroundColor: '#ec4899',
-  },
-  emojiButtonText: {
-    fontSize: 24,
-  },
+  emojiButtonActive: { backgroundColor: "#fbcfe8", borderColor: "#ec4899", borderWidth: 2 },
+  emojiButtonText: { fontSize: 23 },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
+    borderColor: "#d1d5db",
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#111827',
+    color: "#111827",
     fontSize: 16,
     marginBottom: 16,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
+  fieldsRow: { flexDirection: "row", marginHorizontal: -5 },
+  numberInput: { flex: 1, marginHorizontal: 5, textAlign: "center" },
+  yearInput: { flex: 1.5, marginHorizontal: 5, textAlign: "center" },
+  fieldSpacer: { flex: 1.5, marginHorizontal: 5 },
+  repeatRow: { paddingBottom: 16 },
+  repeatButton: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 999,
+    justifyContent: "center",
+    marginRight: 8,
+    minHeight: 44,
+    paddingHorizontal: 15,
   },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 16,
-  },
-  smallInput: {
-    flex: 1,
-    textAlign: 'center',
-  },
-  mediumInput: {
-    flex: 1.5,
-    textAlign: 'center',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 10,
-    marginBottom: 20,
-  },
+  repeatButtonActive: { backgroundColor: "#ec4899" },
+  repeatButtonText: { color: "#4b5563", fontSize: 13, fontWeight: "700" },
+  repeatButtonTextActive: { color: "#fff" },
+  repeatHint: { color: "#6b7280", fontSize: 12, lineHeight: 18, marginBottom: 16, marginTop: -8 },
+  textArea: { minHeight: 90, textAlignVertical: "top" },
+  formError: { color: "#b91c1c", fontSize: 13, lineHeight: 19, marginBottom: 12 },
+  modalButtons: { flexDirection: "row", marginHorizontal: -6, marginTop: 4 },
   modalButton: {
+    alignItems: "center",
+    borderRadius: 16,
     flex: 1,
-    borderRadius: 18,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: "center",
+    marginHorizontal: 6,
+    minHeight: 50,
   },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontWeight: '700',
-  },
-  saveButton: {
-    backgroundColor: '#ec4899',
-  },
-  saveButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  saveButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  cancelButton: { backgroundColor: "#f3f4f6" },
+  cancelButtonText: { color: "#374151", fontWeight: "700" },
+  saveButton: { backgroundColor: "#ec4899" },
+  saveButtonContent: { alignItems: "center", flexDirection: "row" },
+  saveButtonText: { color: "#fff", fontSize: 15, fontWeight: "800", marginLeft: 7 },
 });

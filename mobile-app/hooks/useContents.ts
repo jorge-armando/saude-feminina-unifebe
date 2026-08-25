@@ -10,10 +10,12 @@ export function useContents() {
 }
 
 export function useContent(id: number) {
+  const isValidId = Number.isInteger(id) && id > 0;
+
   return useQuery({
     queryKey: ['content', id],
     queryFn: () => api.getContentById(id),
-    enabled: !!id,
+    enabled: isValidId,
     staleTime: 5 * 60 * 1000,
   });
 }

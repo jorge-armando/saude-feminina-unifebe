@@ -9,17 +9,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Markdown from "react-native-markdown-renderer";
 import { useContent } from "../../hooks/useContents";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigationState } from "@/hooks/useNavigationState";
+import { SafeMarkdown } from "../../components/content/SafeMarkdown";
 
 export default function ContentDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
 
-  const contentId = Number(id);
-  const { data, isLoading, error, refetch } = useContent(contentId);
+  const rawContentId = Array.isArray(id) ? id[0] : id;
+  const contentId =
+    typeof rawContentId === "string" && /^\d+$/.test(rawContentId.trim())
+      ? Number(rawContentId)
+      : Number.NaN;
+  const hasValidContentId =
+    Number.isSafeInteger(contentId) && contentId > 0;
+  const { data, isLoading, error, refetch } = useContent(
+    hasValidContentId ? contentId : 0
+  );
 
   const content = data?.data;
 
@@ -29,7 +36,21 @@ export default function ContentDetailScreen() {
   // Animated value para o scroll
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  useNavigationState("/user/content-detail");
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/user/home");
+  };
+
+  const openContents = () => {
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.replace("/user/content");
+  };
 
   return (
     <View style={styles.container}>
@@ -39,8 +60,11 @@ export default function ContentDetailScreen() {
       >
         <Animated.View style={styles.header}>
           <TouchableOpacity
+            accessibilityLabel="Voltar"
+            accessibilityHint="Voltar para a tela anterior"
+            accessibilityRole="button"
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={handleBack}
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
@@ -59,21 +83,57 @@ export default function ContentDetailScreen() {
           )}
           scrollEventThrottle={16}
         >
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#ec4899" />
+          {!hasValidContentId ? (
+            <View accessibilityRole="alert" style={styles.errorContainer}>
+              <Ionicons name="link-outline" size={58} color="#dc2626" />
+              <Text style={styles.errorText}>Link de conteúdo inválido</Text>
+              <Text style={styles.errorDescription}>
+                Este link não informa qual conteúdo deve ser aberto.
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.contentsButton}
+                onPress={openContents}
+              >
+                <Text style={styles.contentsButtonText}>
+                  Ver todos os conteúdos
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : isLoading ? (
+            <View accessibilityLiveRegion="polite" style={styles.loadingContainer}>
+              <ActivityIndicator
+                accessibilityLabel="Carregando conteúdo"
+                size="large"
+                color="#ec4899"
+              />
               <Text style={styles.loadingText}>Carregando conteúdo...</Text>
             </View>
           ) : error ? (
-            <View style={styles.errorContainer}>
+            <View accessibilityRole="alert" style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={64} color="#ef4444" />
               <Text style={styles.errorText}>Erro ao carregar conteúdo</Text>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => refetch()}
-              >
-                <Text style={styles.retryButtonText}>Tentar novamente</Text>
-              </TouchableOpacity>
+              <Text style={styles.errorDescription}>
+                Verifique sua conexão ou volte para a lista de conteúdos.
+              </Text>
+              <View style={styles.errorActions}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={styles.retryButton}
+                  onPress={() => void refetch()}
+                >
+                  <Text style={styles.retryButtonText}>Tentar novamente</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  style={styles.secondaryContentsButton}
+                  onPress={openContents}
+                >
+                  <Text style={styles.secondaryContentsButtonText}>
+                    Ver conteúdos
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : content ? (
             <View style={styles.content}>
@@ -81,7 +141,9 @@ export default function ContentDetailScreen() {
                 <Text style={styles.categoryText}>{category}</Text>
               </View>
 
-              <Text style={styles.title}>{content.title}</Text>
+              <Text accessibilityRole="header" style={styles.title}>
+                {content.title}
+              </Text>
 
               <View style={styles.infoRow}>
                 <Ionicons name="time-outline" size={18} color="#ec4899" />
@@ -91,10 +153,27 @@ export default function ContentDetailScreen() {
               </View>
 
               <View style={styles.markdownContainer}>
-                <Markdown style={markdownStyles}>{content.content}</Markdown>
+                <SafeMarkdown>{content.content}</SafeMarkdown>
               </View>
             </View>
-          ) : null}
+          ) : (
+            <View accessibilityRole="alert" style={styles.errorContainer}>
+              <Ionicons name="document-outline" size={58} color="#9ca3af" />
+              <Text style={styles.errorText}>Conteúdo não encontrado</Text>
+              <Text style={styles.errorDescription}>
+                O conteúdo pode ter sido removido ou estar indisponível.
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.contentsButton}
+                onPress={openContents}
+              >
+                <Text style={styles.contentsButtonText}>
+                  Ver todos os conteúdos
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.ScrollView>
       </LinearGradient>
     </View>
@@ -123,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     elevation: 6,
     zIndex: 10,
-    height: 80
+    minHeight: 80,
   },
   backButton: {
     width: 44,
@@ -147,16 +226,20 @@ const styles = StyleSheet.create({
     width: 44,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: 20,
   },
   content: {
+    alignSelf: "center",
     backgroundColor: "#fff",
+    maxWidth: 760,
     padding: 24,
     minHeight: 600,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
+    width: "100%",
   },
   categoryBadge: {
     alignSelf: "flex-start",
@@ -204,109 +287,76 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   errorContainer: {
+    alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 24,
     paddingVertical: 100,
   },
   errorText: {
-    fontSize: 16,
-    fontWeight: "700",
     color: "#111827",
+    fontSize: 18,
+    fontWeight: "800",
     marginTop: 16,
-    marginBottom: 24,
+    textAlign: "center",
+  },
+  errorDescription: {
+    color: "#6b7280",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 22,
+    marginTop: 8,
+    maxWidth: 360,
+    textAlign: "center",
+  },
+  errorActions: {
+    gap: 10,
+    maxWidth: 320,
+    width: "100%",
   },
   retryButton: {
+    alignItems: "center",
     backgroundColor: "#ec4899",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
     borderRadius: 18,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 24,
   },
   retryButtonText: {
+    color: "#fff",
     fontSize: 14,
     fontWeight: "700",
-    color: "#fff",
+  },
+  contentsButton: {
+    alignItems: "center",
+    backgroundColor: "#ec4899",
+    borderRadius: 18,
+    justifyContent: "center",
+    maxWidth: 320,
+    minHeight: 48,
+    paddingHorizontal: 22,
+    width: "100%",
+  },
+  contentsButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  secondaryContentsButton: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#f9a8d4",
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 22,
+  },
+  secondaryContentsButtonText: {
+    color: "#be185d",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
   },
 });
-
-const markdownStyles = {
-  body: {
-    fontSize: 16,
-    lineHeight: 26,
-    color: "#374151",
-  },
-  heading2: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  heading3: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  heading4: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  paragraph: {
-    fontSize: 16,
-    lineHeight: 26,
-    color: "#374151",
-    marginBottom: 14,
-  },
-  listItem: {
-    fontSize: 16,
-    lineHeight: 26,
-    color: "#374151",
-    marginBottom: 8,
-  },
-  bullet_list: {
-    marginBottom: 16,
-  },
-  ordered_list: {
-    marginBottom: 16,
-  },
-  strong: {
-    fontWeight: "700",
-    color: "#111827",
-  },
-  em: {
-    fontStyle: "italic",
-  },
-  blockquote: {
-    backgroundColor: "#fef3c7",
-    borderLeftWidth: 4,
-    borderLeftColor: "#f59e0b",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginVertical: 12,
-    borderRadius: 8,
-  },
-  code_inline: {
-    backgroundColor: "#f3f4f6",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    fontSize: 14,
-    fontFamily: "monospace",
-  },
-  fence: {
-    backgroundColor: "#f3f4f6",
-    padding: 12,
-    borderRadius: 8,
-    marginVertical: 12,
-  },
-  hr: {
-    backgroundColor: "#e5e7eb",
-    height: 1,
-    marginVertical: 20,
-  },
-};

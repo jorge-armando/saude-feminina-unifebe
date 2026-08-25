@@ -1,13 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useIsFocused } from "@react-navigation/native";
-import { useEffect } from "react";
-
-export function useNavigationState(screenName: string) {
-  const isFocused = useIsFocused();
-
-  useEffect(() => {
-    if (isFocused) {
-      AsyncStorage.setItem("currentScreen", screenName);
-    }
-  }, [isFocused, screenName]);
+/**
+ * Mantido temporariamente para compatibilidade com as telas existentes.
+ * A antiga chave `currentScreen` era somente escrita e nunca restaurada,
+ * portanto a persistência sem consumidor foi removida.
+ */
+export function useNavigationState(_screenName: string) {
+  return;
 }

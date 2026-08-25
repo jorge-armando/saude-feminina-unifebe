@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Sparkles } from "lucide-react-native";
@@ -14,23 +13,32 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
+import {
+  createLocalUserProfile,
+  loadLocalUserProfile,
+  MAX_USER_NAME_LENGTH,
+} from "../services/userProfile";
 
 export default function Index() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkExistingUser() {
       try {
-        const hasCompleted = await AsyncStorage.getItem("hasCompletedWelcome");
-        const savedName = await AsyncStorage.getItem("userName");
+        const profile = await loadLocalUserProfile();
 
-        if (hasCompleted === "true" && savedName) {
+        if (profile) {
           router.replace("/user/home");
           return;
         }
       } catch (error) {
         console.error("Error checking existing user:", error);
+        setError(
+          "Não foi possível verificar os dados deste aparelho. Tente novamente.",
+        );
       } finally {
         setLoading(false);
       }
@@ -53,12 +61,23 @@ export default function Index() {
   }
 
   async function handleSubmit() {
-    if (!name.trim()) return;
+    if (submitting) return;
 
-    await AsyncStorage.setItem("userName", name.trim());
-    await AsyncStorage.setItem("hasCompletedWelcome", "true");
+    setSubmitting(true);
+    setError(null);
 
-    router.replace("/user/home");
+    try {
+      await createLocalUserProfile(name);
+      router.replace("/user/home");
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Não foi possível salvar seu nome. Tente novamente.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -90,19 +109,37 @@ export default function Index() {
         <Animated.View entering={FadeInDown.delay(500)} style={styles.form}>
           <TextInput
             value={name}
-            onChangeText={setName}
+            onChangeText={(value) => {
+              setName(value);
+              setError(null);
+            }}
             placeholder="Digite seu nome"
             placeholderTextColor="#9ca3af"
             style={styles.input}
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={MAX_USER_NAME_LENGTH}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+            accessibilityLabel="Seu nome"
           />
+
+          {error ? (
+            <Text accessibilityRole="alert" style={styles.errorText}>
+              {error}
+            </Text>
+          ) : null}
 
           <TouchableOpacity
             activeOpacity={0.8}
-            disabled={!name.trim()}
+            disabled={!name.trim() || submitting}
             onPress={handleSubmit}
+            accessibilityRole="button"
+            accessibilityLabel="Continuar para o aplicativo"
+            accessibilityState={{ disabled: !name.trim() || submitting, busy: submitting }}
             style={[
               styles.buttonContainer,
-              !name.trim() && styles.buttonDisabled,
+              (!name.trim() || submitting) && styles.buttonDisabled,
             ]}
           >
             <LinearGradient
@@ -111,7 +148,11 @@ export default function Index() {
               end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Continuar</Text>
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Continuar</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -211,6 +252,13 @@ const styles = StyleSheet.create({
   buttonContainer: {
     borderRadius: 999,
     overflow: "hidden",
+  },
+
+  errorText: {
+    color: "#b91c1c",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
 
   buttonDisabled: {

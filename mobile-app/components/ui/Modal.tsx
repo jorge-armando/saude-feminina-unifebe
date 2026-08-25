@@ -70,7 +70,7 @@ export function Modal({
         easing: Easing.in(Easing.ease),
       });
     }
-  }, [visible, animationDuration]);
+  }, [visible, animationDuration, opacity, scale]);
 
   const overlayAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -98,12 +98,18 @@ export function Modal({
           />
         </Animated.View>
         <Animated.View
+          accessibilityViewIsModal
           style={[styles.wrapper, wrapperStyle, contentAnimatedStyle]}
         >
           <View style={styles.header}>
             {title && <Text style={[styles.title, titleStyle]}>{title}</Text>}
             {showCloseButton && (
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Fechar janela"
+                style={styles.closeButton}
+                onPress={onClose}
+              >
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             )}
@@ -155,9 +161,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   closeButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     padding: 24,
