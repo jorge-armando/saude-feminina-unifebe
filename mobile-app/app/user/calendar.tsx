@@ -23,6 +23,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
@@ -32,6 +33,7 @@ import {
   CalendarTutorialTarget,
   CalendarTutorialTargetFrame,
 } from "../../components/calendar/CalendarTutorial";
+import { CycleTrackingPanel } from "../../components/calendar/CycleTrackingPanel";
 import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
 import { useNavigationState } from "../../hooks/useNavigationState";
 import {
@@ -52,6 +54,7 @@ import {
   rangesOverlap,
   toLocalDate,
 } from "../../services/menstrualCycle";
+import { useCycleTracking } from "../../services/useCycleTracking";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const NOTE_EMOJIS = [
@@ -117,8 +120,23 @@ function formatNoteDate(value: string) {
     : value;
 }
 
+function getCyclePhaseAccessibilityLabel(phase: string) {
+  const labels: Record<string, string> = {
+    recorded_period: "menstruação registrada",
+    predicted_period: "menstruação prevista",
+    follicular: "fase folicular estimada",
+    fertile_window: "janela fértil estimada",
+    estimated_ovulation: "ovulação estimada",
+    luteal: "fase lútea estimada",
+  };
+  return labels[phase];
+}
+
 export default function CalendarPage() {
+  const { height: viewportHeight } = useWindowDimensions();
+  const pageRootRef = useRef<ComponentRef<typeof View>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const tutorialScrollOffsetRef = useRef(0);
   const tutorialButtonRef = useRef<ComponentRef<typeof TouchableOpacity>>(null);
   const restoreTutorialFocusTaskRef = useRef<ReturnType<
     typeof InteractionManager.runAfterInteractions
@@ -127,6 +145,7 @@ export default function CalendarPage() {
     intro: 0,
     prediction: 0,
     calendar: 0,
+    tracking: 0,
     registration: 0,
     history: 0,
     privacy: 0,
@@ -146,6 +165,7 @@ export default function CalendarPage() {
     addRecord,
     removeRecord,
   } = useMenstrualCycles();
+  const cycleTracking = useCycleTracking(records);
 
   const [visibleMonth, setVisibleMonth] =
     useState<VisibleMonth>(initialMonth);
@@ -253,18 +273,31 @@ export default function CalendarPage() {
     isDateInRange(selectedDate, record.startDate, record.endDate)
   );
   const selectedDateIsPredicted = Boolean(
-    prediction &&
-      isDateInRange(selectedDate, prediction.startDate, prediction.endDate)
+    cycleTracking.prediction?.predictionAvailable
+      ? isDateInRange(
+          selectedDate,
+          cycleTracking.prediction.periodStartRange.startDate,
+          cycleTracking.prediction.periodEndRange.endDate
+        )
+      : prediction &&
+          isDateInRange(selectedDate, prediction.startDate, prediction.endDate)
   );
-  const daysUntilPrediction = prediction
-    ? daysBetween(today, prediction.startDate)
+  const selectedAdvancedPhase = cycleTracking.getPhaseForDate(selectedDate);
+  const selectedAdvancedEntry = cycleTracking.getEntryForDate(selectedDate);
+  const activePrediction = cycleTracking.prediction?.predictionAvailable
+    ? cycleTracking.prediction
+    : cycleTracking.prediction
+      ? null
+      : prediction;
+  const daysUntilPrediction = activePrediction
+    ? daysBetween(today, activePrediction.startDate)
     : null;
   const predictionIsOngoing = Boolean(
-    prediction &&
-      isDateInRange(today, prediction.startDate, prediction.endDate)
+    activePrediction &&
+      isDateInRange(today, activePrediction.startDate, activePrediction.endDate)
   );
   const predictionIsOverdue = Boolean(
-    prediction && compareLocalDates(today, prediction.endDate) > 0
+    activePrediction && compareLocalDates(today, activePrediction.endDate) > 0
   );
   const selectionInstruction = !draftStartDate
     ? "1. Toque no primeiro dia da menstruação."
@@ -303,9 +336,14 @@ export default function CalendarPage() {
         return;
       }
 
+      const initialScrollOffset = Math.max(
+        0,
+        tutorialOffsetsRef.current[target] - 10
+      );
+      tutorialScrollOffsetRef.current = initialScrollOffset;
       scrollViewRef.current?.scrollTo({
-        y: Math.max(0, tutorialOffsetsRef.current[target] - 10),
-        animated: !reduceMotion,
+        y: initialScrollOffset,
+        animated: false,
       });
 
       setTutorialTargetFrame(null);
@@ -314,9 +352,41 @@ export default function CalendarPage() {
       const measureWhenStable = (attempt: number) => {
         if (cancelled) return;
 
-        tutorialTargetRefs.current[target]?.measureInWindow(
-          (x, y, width, height) => {
+        const pageRoot = pageRootRef.current;
+        const targetRef = tutorialTargetRefs.current[target];
+
+        if (!pageRoot || !targetRef) return;
+
+        pageRoot.measureInWindow((rootX, rootY) => {
+          targetRef.measureInWindow((windowX, windowY, width, height) => {
             if (cancelled || width <= 0 || height <= 0) return;
+
+            const x = windowX - rootX;
+            const y = windowY - rootY;
+            const desiredTop = 10;
+            const correctedScrollOffset = Math.max(
+              0,
+              tutorialScrollOffsetRef.current + y - desiredTop
+            );
+
+            if (
+              attempt < 4 &&
+              Math.abs(y - desiredTop) > 2 &&
+              Math.abs(
+                correctedScrollOffset - tutorialScrollOffsetRef.current
+              ) > 1
+            ) {
+              tutorialScrollOffsetRef.current = correctedScrollOffset;
+              scrollViewRef.current?.scrollTo({
+                y: correctedScrollOffset,
+                animated: false,
+              });
+              previousFrame = null;
+              measureTimers.push(
+                setTimeout(() => measureWhenStable(attempt + 1), 70)
+              );
+              return;
+            }
 
             const measuredFrame = { x, y, width, height };
             const isStable =
@@ -335,8 +405,8 @@ export default function CalendarPage() {
             measureTimers.push(
               setTimeout(() => measureWhenStable(attempt + 1), 70)
             );
-          }
-        );
+          });
+        });
       };
 
       measureTimers.push(
@@ -581,7 +651,9 @@ export default function CalendarPage() {
     date: string,
     registered: boolean,
     predicted: boolean,
-    draft: boolean
+    draft: boolean,
+    phaseLabel?: string,
+    hasDetails?: boolean
   ) => {
     const labels = [formatLongDate(date)];
 
@@ -589,6 +661,8 @@ export default function CalendarPage() {
     if (registered) labels.push("menstruação registrada");
     if (predicted && !registered) labels.push("menstruação prevista");
     if (draft) labels.push("selecionado para novo registro");
+    if (phaseLabel) labels.push(phaseLabel);
+    if (hasDetails) labels.push("possui registros diários");
     if (isSelecting && compareLocalDates(date, today) > 0) {
       labels.push("indisponível para registro");
     }
@@ -601,16 +675,24 @@ export default function CalendarPage() {
       colors={["#fff1f2", "#fdf2f8", "#faf5ff"]}
       style={styles.container}
     >
+      <View ref={pageRootRef} collapsable={false} style={styles.pageRoot}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           isTutorialActive && {
-            paddingBottom: Math.max(320, tutorialCardHeight + 48),
+            paddingBottom: Math.max(
+              tutorialCardHeight + 48,
+              viewportHeight - 72
+            ),
           },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          tutorialScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
       >
         <View
@@ -639,7 +721,7 @@ export default function CalendarPage() {
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>
-            Registre sua menstruação e acompanhe a previsão do próximo ciclo.
+            Registre seu ciclo, sintomas e sinais para receber previsões mais transparentes.
           </Text>
         </View>
 
@@ -711,7 +793,7 @@ export default function CalendarPage() {
                 </Text>
               </View>
             </View>
-          ) : prediction && daysUntilPrediction !== null ? (
+          ) : activePrediction && daysUntilPrediction !== null ? (
             <LinearGradient
               colors={["#be123c", "#9d174d", "#6b21a8"]}
               style={styles.predictionCard}
@@ -727,7 +809,13 @@ export default function CalendarPage() {
                       : "PRÓXIMO CICLO"}
                   </Text>
                   <Text style={styles.predictionDate}>
-                    {formatLongDate(prediction.startDate)}
+                    {cycleTracking.prediction?.predictionAvailable
+                      ? `${formatShortDate(
+                          cycleTracking.prediction.periodStartRange.startDate
+                        )} a ${formatShortDate(
+                          cycleTracking.prediction.periodStartRange.endDate
+                        )}`
+                      : formatLongDate(activePrediction.startDate)}
                   </Text>
                 </View>
               </View>
@@ -736,23 +824,47 @@ export default function CalendarPage() {
                 {getCountdownLabel(daysUntilPrediction, predictionIsOngoing)}
               </Text>
               <Text style={styles.predictionDetails}>
-                Duração prevista: {prediction.averagePeriodLength}{" "}
-                {prediction.averagePeriodLength === 1 ? "dia" : "dias"} ·{" "}
-                {prediction.basedOnCycles === 1
-                  ? `estimativa inicial de ciclo: ${prediction.averageCycleLength} dias`
-                  : `ciclo médio: ${prediction.averageCycleLength} dias`}
+                Duração prevista: {activePrediction.averagePeriodLength}{" "}
+                {activePrediction.averagePeriodLength === 1 ? "dia" : "dias"} ·{" "}
+                {activePrediction.basedOnCycles === 1
+                  ? `estimativa inicial de ciclo: ${activePrediction.averageCycleLength} dias`
+                  : `ciclo típico: ${activePrediction.averageCycleLength} dias`}
               </Text>
               <View style={styles.estimatePill}>
                 <Ionicons name="sparkles" size={14} color="#ffffff" />
                 <Text style={styles.estimatePillText}>
                   {predictionIsOverdue
                     ? "Registre um novo período para atualizar a previsão"
-                    : prediction.basedOnCycles === 1
-                      ? `Estimativa inicial: considera ${prediction.averageCycleLength} dias até haver 2 registros`
-                      : `Estimativa baseada em ${prediction.basedOnCycles} períodos registrados`}
+                    : cycleTracking.prediction
+                      ? `Confiança ${
+                          cycleTracking.prediction.confidence === "high"
+                            ? "alta"
+                            : cycleTracking.prediction.confidence === "medium"
+                              ? "moderada"
+                              : cycleTracking.prediction.confidence === "low"
+                                ? "baixa"
+                                : "inicial"
+                        } · baseada em ${activePrediction.basedOnCycles} períodos`
+                      : activePrediction.basedOnCycles === 1
+                        ? `Estimativa inicial: considera ${activePrediction.averageCycleLength} dias até haver 2 registros`
+                        : `Estimativa baseada em ${activePrediction.basedOnCycles} períodos registrados`}
                 </Text>
               </View>
             </LinearGradient>
+          ) : cycleTracking.prediction &&
+            !cycleTracking.prediction.predictionAvailable ? (
+            <View style={styles.emptyPredictionCard}>
+              <View style={styles.unavailablePredictionIcon}>
+                <Ionicons name="pause-circle-outline" size={28} color="#7e22ce" />
+              </View>
+              <View style={styles.emptyPredictionText}>
+                <Text style={styles.emptyPredictionTitle}>Previsão pausada</Text>
+                <Text style={styles.emptyPredictionSubtitle}>
+                  O contexto informado não permite uma previsão útil agora. Você pode
+                  revisar isso nas configurações do Calendário Inteligente.
+                </Text>
+              </View>
+            </View>
           ) : (
             <View style={styles.emptyPredictionCard}>
               <View style={styles.emptyPredictionIcon}>
@@ -863,9 +975,17 @@ export default function CalendarPage() {
                 const registered = records.some((record) =>
                   isDateInRange(date, record.startDate, record.endDate)
                 );
+                const advancedPhase = cycleTracking.getPhaseForDate(date);
+                const advancedEntry = cycleTracking.getEntryForDate(date);
                 const predicted = Boolean(
-                  prediction &&
-                    isDateInRange(date, prediction.startDate, prediction.endDate)
+                  cycleTracking.prediction?.predictionAvailable
+                    ? isDateInRange(
+                        date,
+                        cycleTracking.prediction.periodStartRange.startDate,
+                        cycleTracking.prediction.periodEndRange.endDate
+                      )
+                    : prediction &&
+                        isDateInRange(date, prediction.startDate, prediction.endDate)
                 );
                 const draft = Boolean(
                   draftStartDate &&
@@ -879,6 +999,25 @@ export default function CalendarPage() {
                 const isSelected = date === selectedDate;
                 const isFuture = compareLocalDates(date, today) > 0;
                 const hasStrongBackground = registered || draft;
+                const isFertile =
+                  advancedPhase.phase === "fertile_window" ||
+                  advancedPhase.phase === "estimated_ovulation";
+                const isOvulation =
+                  advancedPhase.phase === "estimated_ovulation";
+                const hasDailyDetails = Boolean(
+                  advancedEntry &&
+                    (advancedEntry.bleeding ||
+                      Object.keys(advancedEntry.symptoms).length > 0 ||
+                      advancedEntry.moods.length > 0 ||
+                      Object.keys(advancedEntry.fertility).length > 0 ||
+                      advancedEntry.sexualActivityStatus !== "not_reported" ||
+                      advancedEntry.medications.length > 0 ||
+                      Object.keys(advancedEntry.factors).length > 0)
+                );
+                const showSexMarker = Boolean(
+                  cycleTracking.settings.showSexMarkers &&
+                    advancedEntry?.sexualActivityStatus === "activity"
+                );
 
                 return (
                   <View key={date} style={styles.dayCell}>
@@ -887,7 +1026,9 @@ export default function CalendarPage() {
                         date,
                         registered,
                         predicted,
-                        draft
+                        draft,
+                        getCyclePhaseAccessibilityLabel(advancedPhase.phase),
+                        hasDailyDetails
                       )}
                   accessibilityRole="button"
                       accessibilityState={{
@@ -898,6 +1039,15 @@ export default function CalendarPage() {
                       disabled={isSelecting && isFuture}
                       style={[
                         styles.dayButton,
+                        isFertile &&
+                          !registered &&
+                          !draft &&
+                          !predicted &&
+                          styles.dayFertile,
+                        isOvulation &&
+                          !registered &&
+                          !draft &&
+                          styles.dayOvulation,
                         predicted && !registered && styles.dayPredicted,
                         registered && styles.dayRegistered,
                         draft && styles.dayDraft,
@@ -924,6 +1074,26 @@ export default function CalendarPage() {
                           ]}
                         />
                       )}
+                      {(hasDailyDetails || isFertile || showSexMarker) && (
+                        <View style={styles.dayIndicators} accessible={false}>
+                          {isFertile && !hasStrongBackground ? (
+                            <View style={[styles.dayIndicator, styles.dayIndicatorFertile]} />
+                          ) : null}
+                          {hasDailyDetails ? (
+                            <View
+                              style={[
+                                styles.dayIndicator,
+                                hasStrongBackground
+                                  ? styles.dayIndicatorStrong
+                                  : styles.dayIndicatorDetails,
+                              ]}
+                            />
+                          ) : null}
+                          {showSexMarker ? (
+                            <View style={[styles.dayIndicator, styles.dayIndicatorSex]} />
+                          ) : null}
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 );
@@ -938,6 +1108,14 @@ export default function CalendarPage() {
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, styles.legendPredicted]} />
                 <Text style={styles.legendText}>Previsão</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, styles.legendFertile]} />
+                <Text style={styles.legendText}>Fértil estimada</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, styles.legendDetails]} />
+                <Text style={styles.legendText}>Com detalhes</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={styles.legendToday} />
@@ -974,12 +1152,33 @@ export default function CalendarPage() {
                         } dias`
                       : selectedDateIsPredicted
                         ? "Data incluída na previsão do próximo ciclo"
-                        : "Nenhum período menstrual registrado nesta data"}
+                        : selectedAdvancedEntry
+                          ? `${getCyclePhaseAccessibilityLabel(
+                              selectedAdvancedPhase.phase
+                            ) ?? "Fase ainda desconhecida"} · possui registros diários`
+                          : getCyclePhaseAccessibilityLabel(
+                                selectedAdvancedPhase.phase
+                              ) ?? "Nenhum período menstrual registrado nesta data"}
                   </Text>
                 </View>
               </View>
             )}
           </View>
+        </View>
+
+        <View
+          collapsable={false}
+          style={styles.section}
+          onLayout={(event) => handleTutorialTargetLayout("tracking", event)}
+        >
+          <CycleTrackingPanel
+            selectedDate={selectedDate}
+            today={today}
+            tracking={cycleTracking}
+            tutorialTargetRef={(node) => {
+              tutorialTargetRefs.current.tracking = node;
+            }}
+          />
         </View>
 
         <View
@@ -1328,9 +1527,9 @@ export default function CalendarPage() {
             <View style={styles.localDataContent}>
               <Text style={styles.localDataTitle}>Dados armazenados localmente</Text>
               <Text style={styles.localDataText}>
-                Seus registros e anotações ficam protegidos neste aparelho e podem ser
-                apagados no Perfil. A previsão é uma estimativa e não substitui
-                orientação profissional.
+                Períodos, anotações e registros detalhados ficam somente neste aparelho
+                e podem ser exportados ou apagados. Nesta versão de testes, ainda não há
+                criptografia ou bloqueio biométrico. A previsão é apenas uma estimativa.
               </Text>
             </View>
           </View>
@@ -1679,12 +1878,16 @@ export default function CalendarPage() {
           </View>
         </View>
       </Modal>
+      </View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  pageRoot: {
     flex: 1,
   },
   scrollView: {
@@ -2027,6 +2230,14 @@ const styles = StyleSheet.create({
     borderColor: "#f9a8d4",
     borderStyle: "dashed",
   },
+  dayFertile: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#a7f3d0",
+  },
+  dayOvulation: {
+    borderColor: "#8b5cf6",
+    borderStyle: "dashed",
+  },
   dayRegistered: {
     backgroundColor: "#e11d48",
     borderColor: "#e11d48",
@@ -2071,6 +2282,30 @@ const styles = StyleSheet.create({
   todayDotStrong: {
     backgroundColor: "#ffffff",
   },
+  dayIndicators: {
+    alignItems: "center",
+    bottom: 3,
+    flexDirection: "row",
+    gap: 2,
+    position: "absolute",
+  },
+  dayIndicator: {
+    borderRadius: 999,
+    height: 4,
+    width: 4,
+  },
+  dayIndicatorFertile: {
+    backgroundColor: "#10b981",
+  },
+  dayIndicatorDetails: {
+    backgroundColor: "#7e22ce",
+  },
+  dayIndicatorStrong: {
+    backgroundColor: "#ffffff",
+  },
+  dayIndicatorSex: {
+    backgroundColor: "#ec4899",
+  },
   legend: {
     alignItems: "center",
     borderTopColor: "#f3f4f6",
@@ -2098,6 +2333,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fce7f3",
     borderColor: "#f472b6",
     borderWidth: 1,
+  },
+  legendFertile: {
+    backgroundColor: "#d1fae5",
+    borderColor: "#10b981",
+    borderWidth: 1,
+  },
+  legendDetails: {
+    backgroundColor: "#7e22ce",
+    height: 7,
+    marginHorizontal: 2,
+    marginRight: 8,
+    width: 7,
   },
   legendToday: {
     backgroundColor: "#db2777",

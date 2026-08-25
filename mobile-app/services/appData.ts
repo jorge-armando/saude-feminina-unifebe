@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { APP_NOTIFICATION_STATE_KEY } from "./appNotificationState";
 import { CALENDAR_NOTES_STORAGE_KEY } from "./calendarNotes";
+import { CYCLE_CALENDAR_STORAGE_KEY } from "./cycleCalendar";
 import { DAILY_MESSAGE_STORAGE_KEY } from "./dailyMessage";
 import { MENSTRUAL_CYCLES_STORAGE_KEY } from "./menstrualCycle";
 import { NOTIFICATION_PREFERENCES_STORAGE_KEY } from "./notificationPreferencesStore";
@@ -22,6 +23,7 @@ const APP_STORAGE_KEYS = [
   WELCOME_STORAGE_KEY,
   MENSTRUAL_CYCLES_STORAGE_KEY,
   CALENDAR_NOTES_STORAGE_KEY,
+  CYCLE_CALENDAR_STORAGE_KEY,
   DAILY_MESSAGE_STORAGE_KEY,
   NOTIFICATION_PREFERENCES_STORAGE_KEY,
   APP_NOTIFICATION_STATE_KEY,

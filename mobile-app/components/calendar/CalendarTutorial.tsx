@@ -17,12 +17,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, Mask, Rect } from "react-native-svg";
 
 export type CalendarTutorialTarget =
   | "intro"
   | "prediction"
   | "calendar"
+  | "tracking"
   | "registration"
   | "history"
   | "privacy";
@@ -64,6 +64,13 @@ export const CALENDAR_TUTORIAL_STEPS: CalendarTutorialStep[] = [
     icon: "calendar-outline",
   },
   {
+    target: "tracking",
+    title: "Registre os detalhes",
+    description:
+      "Selecione uma data e use Registrar para anotar fluxo, sintomas, humor, sinais de fertilidade e, se quiser, relação e proteção.",
+    icon: "analytics-outline",
+  },
+  {
     target: "registration",
     title: "Registre um período",
     description:
@@ -81,7 +88,7 @@ export const CALENDAR_TUTORIAL_STEPS: CalendarTutorialStep[] = [
     target: "privacy",
     title: "Dados no aparelho",
     description:
-      "Nesta versão, os registros ficam só neste aparelho. A previsão é apenas uma estimativa.",
+      "Os registros ficam só neste aparelho e podem ser exportados ou apagados. Nesta versão de testes, o armazenamento ainda não tem criptografia ou biometria.",
     icon: "phone-portrait-outline",
   },
 ];
@@ -261,47 +268,54 @@ export function CalendarTutorial({
           pointerEvents="none"
           style={styles.frameCoordinateOrigin}
         />
-        {visibleTargetFrame ? (
-          <Svg
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-            height={viewportHeight}
-            width={viewportWidth}
-          >
-            <Defs>
-              <Mask id="tutorialBackdropMask">
-                <Rect
-                  fill="#ffffff"
-                  height={viewportHeight}
-                  width={viewportWidth}
-                  x={0}
-                  y={0}
-                />
-                <Rect
-                  fill="#000000"
-                  height={visibleTargetFrame.height}
-                  rx={24}
-                  ry={24}
-                  width={visibleTargetFrame.width}
-                  x={visibleTargetFrame.left}
-                  y={visibleTargetFrame.top}
-                />
-              </Mask>
-            </Defs>
-            <Rect
-              fill="rgba(15, 23, 42, 0.45)"
-              height={viewportHeight}
-              mask="url(#tutorialBackdropMask)"
-              width={viewportWidth}
-              x={0}
-              y={0}
-            />
-          </Svg>
-        ) : (
-          <View pointerEvents="none" style={styles.backdrop} />
-        )}
+        <Pressable accessible={false} style={styles.touchBlocker} />
 
-        <Pressable accessible={false} style={styles.backdropTouchable} />
+        {visibleTargetFrame ? (
+          <>
+            <View
+              accessible={false}
+              pointerEvents="none"
+              style={[styles.backdropPiece, styles.backdropTop, { height: visibleTargetFrame.top }]}
+            />
+            <View
+              accessible={false}
+              pointerEvents="none"
+              style={[
+                styles.backdropPiece,
+                {
+                  height: visibleTargetFrame.height,
+                  left: 0,
+                  top: visibleTargetFrame.top,
+                  width: visibleTargetFrame.left,
+                },
+              ]}
+            />
+            <View
+              accessible={false}
+              pointerEvents="none"
+              style={[
+                styles.backdropPiece,
+                {
+                  height: visibleTargetFrame.height,
+                  left: visibleTargetFrame.left + visibleTargetFrame.width,
+                  right: 0,
+                  top: visibleTargetFrame.top,
+                },
+              ]}
+            />
+            <View
+              accessible={false}
+              pointerEvents="none"
+              style={[
+                styles.backdropPiece,
+                styles.backdropBottom,
+                { top: visibleTargetFrame.top + visibleTargetFrame.height },
+              ]}
+            />
+          </>
+        ) : (
+          <View accessible={false} pointerEvents="none" style={styles.backdrop} />
+        )}
 
         {visibleTargetFrame ? (
           <Animated.View
@@ -519,8 +533,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  backdropTouchable: {
-    backgroundColor: "transparent",
+  touchBlocker: {
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -534,6 +547,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     width: 1,
+  },
+  backdropPiece: {
+    backgroundColor: "rgba(15, 23, 42, 0.25)",
+    position: "absolute",
+    zIndex: 1,
+  },
+  backdropTop: {
+    left: 0,
+    right: 0,
+    top: 0,
+  },
+  backdropBottom: {
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   targetFrame: {
     backgroundColor: "transparent",

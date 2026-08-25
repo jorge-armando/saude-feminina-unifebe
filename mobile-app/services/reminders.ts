@@ -900,10 +900,8 @@ async function scheduleNativeReminder(
 
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: `${reminder.emoji} ${reminder.title}`,
-        body: reminder.notes
-          ? `${reminder.day}/${reminder.month}/${reminder.year} às ${reminder.hour}:${reminder.minute} • ${reminder.notes}`
-          : `${reminder.day}/${reminder.month}/${reminder.year} às ${reminder.hour}:${reminder.minute}`,
+        title: "Você tem um lembrete",
+        body: "Abra o Saúde Feminina para ver os detalhes.",
         sound: "default",
         data: {
           type: "appointment-reminder",
