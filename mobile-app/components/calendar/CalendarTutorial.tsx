@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { ComponentProps, useEffect, useMemo, useRef } from "react";
+import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Animated,
@@ -116,7 +116,10 @@ export function CalendarTutorial({
   } = useWindowDimensions();
   const bodyScrollRef = useRef<ScrollView>(null);
   const announcementRef = useRef<View>(null);
+  const layerRef = useRef<View>(null);
   const glowProgress = useRef(new Animated.Value(0)).current;
+  const [localTargetFrame, setLocalTargetFrame] =
+    useState<CalendarTutorialTargetFrame | null>(null);
   const step = useMemo(() => {
     const selectedStep = CALENDAR_TUTORIAL_STEPS[stepIndex];
 
@@ -136,22 +139,22 @@ export function CalendarTutorial({
     | (CalendarTutorialTargetFrame & { left: number; top: number })
     | null = null;
 
-  if (targetFrame) {
-    const left = Math.max(8, targetFrame.x - 6);
-    const top = Math.max(8, targetFrame.y - 6);
+  if (localTargetFrame) {
+    const left = Math.max(8, localTargetFrame.x - 6);
+    const top = Math.max(8, localTargetFrame.y - 6);
 
     visibleTargetFrame = {
       x: left,
       y: top,
       height: Math.max(
         24,
-        Math.min(targetFrame.height + 12, viewportHeight - top - 8)
+        Math.min(localTargetFrame.height + 12, viewportHeight - top - 8)
       ),
       left,
       top,
       width: Math.max(
         24,
-        Math.min(targetFrame.width + 12, viewportWidth - left - 8)
+        Math.min(localTargetFrame.width + 12, viewportWidth - left - 8)
       ),
     };
   }
@@ -173,6 +176,32 @@ export function CalendarTutorial({
 
     return () => focusTask.cancel();
   }, [step, visible]);
+
+  useEffect(() => {
+    if (!visible || !targetFrame) {
+      setLocalTargetFrame(null);
+      return;
+    }
+
+    let cancelled = false;
+    const animationFrame = requestAnimationFrame(() => {
+      layerRef.current?.measureInWindow((layerX, layerY) => {
+        if (cancelled) return;
+
+        setLocalTargetFrame({
+          height: targetFrame.height,
+          width: targetFrame.width,
+          x: targetFrame.x - layerX,
+          y: targetFrame.y - layerY,
+        });
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [targetFrame, visible, viewportHeight, viewportWidth]);
 
   useEffect(() => {
     if (!visible || !targetFrame || reduceMotion) {
@@ -214,6 +243,7 @@ export function CalendarTutorial({
       onRequestClose={onClose}
     >
       <View
+        ref={layerRef}
         style={[
           styles.layer,
           { paddingBottom: Math.max(insets.bottom, 16) },
@@ -247,6 +277,7 @@ export function CalendarTutorial({
               },
             ]}
           >
+            <View style={styles.frameGlow} />
             <LinearGradient
               colors={["#7e22ce", "#ec4899", "#8b5cf6", "#7e22ce"]}
               end={{ x: 1, y: 0 }}
@@ -433,14 +464,21 @@ const styles = StyleSheet.create({
     top: 0,
   },
   targetFrame: {
+    backgroundColor: "transparent",
     borderRadius: 24,
-    elevation: 30,
     position: "absolute",
-    shadowColor: "#a855f7",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.95,
-    shadowRadius: 14,
     zIndex: 2,
+  },
+  frameGlow: {
+    backgroundColor: "transparent",
+    borderColor: "rgba(168, 85, 247, 0.28)",
+    borderRadius: 29,
+    borderWidth: 8,
+    bottom: -5,
+    left: -5,
+    position: "absolute",
+    right: -5,
+    top: -5,
   },
   frameEdge: { position: "absolute" },
   frameTop: {

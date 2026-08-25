@@ -294,7 +294,8 @@ export default function CalendarPage() {
       return;
     }
 
-    let measureTimer: ReturnType<typeof setTimeout> | null = null;
+    const measureTimers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
     const animationFrame = requestAnimationFrame(() => {
       const target = CALENDAR_TUTORIAL_STEPS[tutorialStepIndex]?.target;
 
@@ -308,23 +309,45 @@ export default function CalendarPage() {
       });
 
       setTutorialTargetFrame(null);
-      measureTimer = setTimeout(
-        () => {
-          tutorialTargetRefs.current[target]?.measureInWindow(
-            (x, y, width, height) => {
-              if (width > 0 && height > 0) {
-                setTutorialTargetFrame({ x, y, width, height });
-              }
+      let previousFrame: CalendarTutorialTargetFrame | null = null;
+
+      const measureWhenStable = (attempt: number) => {
+        if (cancelled) return;
+
+        tutorialTargetRefs.current[target]?.measureInWindow(
+          (x, y, width, height) => {
+            if (cancelled || width <= 0 || height <= 0) return;
+
+            const measuredFrame = { x, y, width, height };
+            const isStable =
+              previousFrame !== null &&
+              Math.abs(previousFrame.x - x) < 0.75 &&
+              Math.abs(previousFrame.y - y) < 0.75 &&
+              Math.abs(previousFrame.width - width) < 0.75 &&
+              Math.abs(previousFrame.height - height) < 0.75;
+
+            if (isStable || attempt >= 12 || reduceMotion) {
+              setTutorialTargetFrame(measuredFrame);
+              return;
             }
-          );
-        },
-        reduceMotion ? 50 : 420
+
+            previousFrame = measuredFrame;
+            measureTimers.push(
+              setTimeout(() => measureWhenStable(attempt + 1), 70)
+            );
+          }
+        );
+      };
+
+      measureTimers.push(
+        setTimeout(() => measureWhenStable(0), reduceMotion ? 20 : 80)
       );
     });
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(animationFrame);
-      if (measureTimer) clearTimeout(measureTimer);
+      measureTimers.forEach(clearTimeout);
     };
   }, [
     isTutorialActive,
