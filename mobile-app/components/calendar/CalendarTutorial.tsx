@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Defs, Mask, Rect } from "react-native-svg";
 
 export type CalendarTutorialTarget =
   | "intro"
@@ -260,7 +261,47 @@ export function CalendarTutorial({
           pointerEvents="none"
           style={styles.frameCoordinateOrigin}
         />
-        <Pressable accessible={false} style={styles.backdrop} />
+        {visibleTargetFrame ? (
+          <Svg
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+            height={viewportHeight}
+            width={viewportWidth}
+          >
+            <Defs>
+              <Mask id="tutorialBackdropMask">
+                <Rect
+                  fill="#ffffff"
+                  height={viewportHeight}
+                  width={viewportWidth}
+                  x={0}
+                  y={0}
+                />
+                <Rect
+                  fill="#000000"
+                  height={visibleTargetFrame.height}
+                  rx={24}
+                  ry={24}
+                  width={visibleTargetFrame.width}
+                  x={visibleTargetFrame.left}
+                  y={visibleTargetFrame.top}
+                />
+              </Mask>
+            </Defs>
+            <Rect
+              fill="rgba(15, 23, 42, 0.45)"
+              height={viewportHeight}
+              mask="url(#tutorialBackdropMask)"
+              width={viewportWidth}
+              x={0}
+              y={0}
+            />
+          </Svg>
+        ) : (
+          <View pointerEvents="none" style={styles.backdrop} />
+        )}
+
+        <Pressable accessible={false} style={styles.backdropTouchable} />
 
         {visibleTargetFrame ? (
           <Animated.View
@@ -471,7 +512,15 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   backdrop: {
-    backgroundColor: "rgba(15, 23, 42, 0.22)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  backdropTouchable: {
+    backgroundColor: "transparent",
     bottom: 0,
     left: 0,
     position: "absolute",
