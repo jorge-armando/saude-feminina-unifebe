@@ -10,19 +10,30 @@ export interface CalendarNote {
   emoji: string;
 }
 
-function isCalendarNote(value: unknown): value is CalendarNote {
-  if (!value || typeof value !== "object") return false;
+let notesWriteQueue: Promise<void> = Promise.resolve();
+
+function normalizeCalendarNote(value: unknown): CalendarNote | null {
+  if (!value || typeof value !== "object") return null;
 
   const note = value as Partial<CalendarNote>;
-  return (
-    typeof note.id === "string" &&
-    typeof note.date === "string" &&
-    typeof note.note === "string" &&
-    note.note.trim().length > 0 &&
-    Array.isArray(note.symptoms) &&
-    note.symptoms.every((symptom) => typeof symptom === "string") &&
-    typeof note.emoji === "string"
-  );
+  if (
+    typeof note.id !== "string" ||
+    typeof note.date !== "string" ||
+    typeof note.note !== "string" ||
+    note.note.trim().length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    id: note.id,
+    date: note.date,
+    note: note.note,
+    symptoms: Array.isArray(note.symptoms)
+      ? note.symptoms.filter((symptom): symptom is string => typeof symptom === "string")
+      : [],
+    emoji: typeof note.emoji === "string" && note.emoji ? note.emoji : "📝",
+  };
 }
 
 export async function loadCalendarNotes(): Promise<CalendarNote[]> {
@@ -32,9 +43,16 @@ export async function loadCalendarNotes(): Promise<CalendarNote[]> {
   const parsed: unknown = JSON.parse(stored);
   if (!Array.isArray(parsed)) return [];
 
-  return parsed.filter(isCalendarNote);
+  return parsed
+    .map(normalizeCalendarNote)
+    .filter((note): note is CalendarNote => note !== null);
 }
 
 export async function saveCalendarNotes(notes: CalendarNote[]): Promise<void> {
-  await AsyncStorage.setItem(CALENDAR_NOTES_STORAGE_KEY, JSON.stringify(notes));
+  const serialized = JSON.stringify(notes);
+  const write = notesWriteQueue.then(() =>
+    AsyncStorage.setItem(CALENDAR_NOTES_STORAGE_KEY, serialized)
+  );
+  notesWriteQueue = write.catch(() => undefined);
+  await write;
 }

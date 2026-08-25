@@ -10,6 +10,7 @@ import {
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  FlatList,
   findNodeHandle,
   InteractionManager,
   LayoutChangeEvent,
@@ -52,6 +53,16 @@ import {
 } from "../../services/menstrualCycle";
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const NOTE_EMOJIS = [
+  { emoji: "📝", label: "Anotação" },
+  { emoji: "🌸", label: "Flor" },
+  { emoji: "😊", label: "Feliz" },
+  { emoji: "😴", label: "Sono" },
+  { emoji: "⚡", label: "Energia" },
+  { emoji: "🩷", label: "Coração" },
+  { emoji: "🧘‍♀️", label: "Tranquilidade" },
+  { emoji: "💪", label: "Força" },
+];
 
 interface VisibleMonth {
   year: number;
@@ -97,6 +108,12 @@ function getCountdownLabel(numberOfDays: number, isOngoing: boolean) {
   }
 
   return `prevista em ${numberOfDays} dias`;
+}
+
+function formatNoteDate(value: string) {
+  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)
+    ? formatLongDate(value)
+    : value;
 }
 
 export default function CalendarPage() {
@@ -145,7 +162,12 @@ export default function CalendarPage() {
     useState<MenstrualCycleRecord | null>(null);
   const [notes, setNotes] = useState<CalendarNote[]>([]);
   const [noteText, setNoteText] = useState("");
+  const [noteEmoji, setNoteEmoji] = useState("📝");
+  const [noteDate, setNoteDate] = useState(selectedDate);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
+  const [isCycleHistoryVisible, setIsCycleHistoryVisible] = useState(false);
+  const [isNotesHistoryVisible, setIsNotesHistoryVisible] = useState(false);
   const [notesReady, setNotesReady] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
@@ -171,19 +193,53 @@ export default function CalendarPage() {
     const text = noteText.trim();
     if (!text) return;
 
-    setNotes((current) => [
-      {
-        id: `${Date.now()}`,
-        date: selectedDate,
-        note: text,
-        symptoms: [],
-        emoji: "📝",
-      },
-      ...current,
-    ]);
+    setNotes((current) =>
+      editingNoteId
+        ? current.map((item) =>
+            item.id === editingNoteId
+              ? { ...item, note: text, emoji: noteEmoji }
+              : item
+          )
+        : [
+            {
+              id: `${Date.now()}`,
+              date: noteDate,
+              note: text,
+              symptoms: [],
+              emoji: noteEmoji,
+            },
+            ...current,
+          ]
+    );
     setNoteText("");
+    setNoteEmoji("📝");
+    setEditingNoteId(null);
     setNotesError(null);
     setIsNoteModalVisible(false);
+  };
+
+  const openNewNote = () => {
+    setNoteText("");
+    setNoteEmoji("📝");
+    setNoteDate(selectedDate);
+    setEditingNoteId(null);
+    setNotesError(null);
+    setIsNoteModalVisible(true);
+  };
+
+  const openNoteEditor = (item: CalendarNote) => {
+    const openedFromHistory = isNotesHistoryVisible;
+    setNoteText(item.note);
+    setNoteEmoji(item.emoji || "📝");
+    setNoteDate(item.date);
+    setEditingNoteId(item.id);
+    setNotesError(null);
+    setIsNotesHistoryVisible(false);
+    if (openedFromHistory) {
+      setTimeout(() => setIsNoteModalVisible(true), 180);
+    } else {
+      setIsNoteModalVisible(true);
+    }
   };
 
   const monthGrid = useMemo(() => getMonthGrid(visibleMonth), [visibleMonth]);
@@ -663,71 +719,6 @@ export default function CalendarPage() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeadingRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Minhas anotações</Text>
-              <Text style={styles.sectionSubtitle}>
-                Registre como você se sentiu em uma data.
-              </Text>
-            </View>
-            <View style={styles.notesIcon}>
-              <Ionicons name="create-outline" size={21} color="#be185d" />
-            </View>
-          </View>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.86}
-            style={styles.addNoteButton}
-            onPress={() => {
-              setNoteText("");
-              setNotesError(null);
-              setIsNoteModalVisible(true);
-            }}
-          >
-            <Ionicons name="add-circle" size={23} color="#ffffff" />
-            <Text style={styles.addNoteButtonText}>
-              Anotar em {formatShortDate(selectedDate)}
-            </Text>
-          </TouchableOpacity>
-
-          {notesError ? (
-            <Text accessibilityRole="alert" style={styles.notesError}>
-              {notesError}
-            </Text>
-          ) : null}
-
-          {notes.map((item) => (
-            <View key={item.id} style={styles.noteCard}>
-              <View style={styles.noteEmojiBox}>
-                <Text style={styles.noteEmoji}>{item.emoji || "📝"}</Text>
-              </View>
-              <View style={styles.noteContent}>
-                <Text style={styles.noteDate}>
-                  {/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(item.date)
-                    ? formatLongDate(item.date)
-                    : item.date}
-                </Text>
-                <Text style={styles.noteText}>{item.note}</Text>
-              </View>
-              <TouchableOpacity
-                accessibilityLabel="Excluir anotação"
-                accessibilityRole="button"
-                activeOpacity={0.72}
-                style={styles.noteDeleteButton}
-                onPress={() =>
-                  setNotes((current) =>
-                    current.filter((note) => note.id !== item.id)
-                  )
-                }
-              >
-                <Ionicons name="trash-outline" size={18} color="#dc2626" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-
         <View
           style={styles.section}
           onLayout={(event) => handleTutorialTargetLayout("calendar", event)}
@@ -1089,32 +1080,39 @@ export default function CalendarPage() {
                 Use o botão acima e selecione as datas no calendário.
               </Text>
             </View>
-          ) : (
-            records.map((record) => {
-              const duration = daysBetween(record.startDate, record.endDate) + 1;
-
-              return (
-                <View key={record.id} style={styles.historyCard}>
+          ) : records[0] ? (
+            <>
+              <View style={styles.stackContainer}>
+                {records.length > 2 ? (
+                  <View accessible={false} pointerEvents="none" style={[styles.stackLayer, styles.stackLayerBack]} />
+                ) : null}
+                {records.length > 1 ? (
+                  <View accessible={false} pointerEvents="none" style={[styles.stackLayer, styles.stackLayerMiddle]} />
+                ) : null}
+                <View style={[styles.historyCard, styles.stackFrontCard]}>
                   <View style={styles.historyCardIcon}>
                     <Ionicons name="water" size={21} color="#e11d48" />
                   </View>
                   <View style={styles.historyCardContent}>
                     <Text style={styles.historyCardTitle}>
-                      {formatLongDate(record.startDate)}
+                      {formatLongDate(records[0].startDate)}
                     </Text>
                     <Text style={styles.historyCardRange}>
-                      {formatShortDate(record.startDate)} a{" "}
-                      {formatShortDate(record.endDate)}
+                      {formatShortDate(records[0].startDate)} a{" "}
+                      {formatShortDate(records[0].endDate)}
                     </Text>
                     <View style={styles.durationBadge}>
                       <Text style={styles.durationBadgeText}>
-                        {duration} {duration === 1 ? "dia" : "dias"}
+                        {daysBetween(records[0].startDate, records[0].endDate) + 1}{" "}
+                        {daysBetween(records[0].startDate, records[0].endDate) + 1 === 1
+                          ? "dia"
+                          : "dias"}
                       </Text>
                     </View>
                   </View>
                   <TouchableOpacity
                     accessibilityLabel={`Excluir período iniciado em ${formatLongDate(
-                      record.startDate
+                      records[0].startDate
                     )}`}
                     accessibilityRole="button"
                     accessibilityState={{
@@ -1125,14 +1123,126 @@ export default function CalendarPage() {
                     style={styles.deleteButton}
                     onPress={() => {
                       setDeleteError(null);
-                      setRecordToDelete(record);
+                      setRecordToDelete(records[0]);
                     }}
                   >
                     <Ionicons name="trash-outline" size={19} color="#dc2626" />
                   </TouchableOpacity>
                 </View>
-              );
-            })
+              </View>
+              {records.length > 1 ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  activeOpacity={0.75}
+                  style={styles.seeOthersButton}
+                  onPress={() => setIsCycleHistoryVisible(true)}
+                >
+                  <Text style={styles.seeOthersButtonText}>
+                    Ver outros registros ({records.length - 1})
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#be185d" />
+                </TouchableOpacity>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <View>
+              <Text style={styles.sectionTitle}>Minhas anotações</Text>
+              <Text style={styles.sectionSubtitle}>
+                Registre como você se sentiu em uma data.
+              </Text>
+            </View>
+            <View style={styles.notesIcon}>
+              <Ionicons name="create-outline" size={21} color="#be185d" />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.86}
+            style={styles.addNoteButton}
+            onPress={openNewNote}
+          >
+            <Ionicons name="add-circle" size={23} color="#ffffff" />
+            <Text style={styles.addNoteButtonText}>
+              Anotar em {formatShortDate(selectedDate)}
+            </Text>
+          </TouchableOpacity>
+
+          {notesError ? (
+            <Text accessibilityRole="alert" style={styles.notesError}>
+              {notesError}
+            </Text>
+          ) : null}
+
+          {notes[0] ? (
+            <>
+              <View style={styles.stackContainer}>
+                {notes.length > 2 ? (
+                  <View accessible={false} pointerEvents="none" style={[styles.stackLayer, styles.noteStackLayerBack]} />
+                ) : null}
+                {notes.length > 1 ? (
+                  <View accessible={false} pointerEvents="none" style={[styles.stackLayer, styles.noteStackLayerMiddle]} />
+                ) : null}
+                <View style={[styles.noteCard, styles.stackFrontCard]}>
+                  <View style={styles.noteEmojiBox}>
+                    <Text style={styles.noteEmoji}>{notes[0].emoji || "📝"}</Text>
+                  </View>
+                  <View style={styles.noteContent}>
+                    <Text style={styles.noteDate}>{formatNoteDate(notes[0].date)}</Text>
+                    <Text numberOfLines={3} style={styles.noteText}>
+                      {notes[0].note}
+                    </Text>
+                  </View>
+                  <View style={styles.noteActions}>
+                    <TouchableOpacity
+                      accessibilityLabel="Editar anotação"
+                      accessibilityRole="button"
+                      activeOpacity={0.72}
+                      style={styles.noteEditButton}
+                      onPress={() => openNoteEditor(notes[0])}
+                    >
+                      <Ionicons name="pencil-outline" size={18} color="#7e22ce" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel="Excluir anotação"
+                      accessibilityRole="button"
+                      activeOpacity={0.72}
+                      style={styles.noteDeleteButton}
+                      onPress={() =>
+                        setNotes((current) =>
+                          current.filter((note) => note.id !== notes[0].id)
+                        )
+                      }
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+              {notes.length > 1 ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  activeOpacity={0.75}
+                  style={styles.seeOthersButton}
+                  onPress={() => setIsNotesHistoryVisible(true)}
+                >
+                  <Text style={styles.seeOthersButtonText}>
+                    Ver outras anotações ({notes.length - 1})
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#be185d" />
+                </TouchableOpacity>
+              ) : null}
+            </>
+          ) : (
+            <View style={styles.emptyNoteCard}>
+              <Text style={styles.emptyNoteText}>
+                Nenhuma anotação ainda. Selecione uma data no calendário para começar.
+              </Text>
+            </View>
           )}
         </View>
 
@@ -1175,6 +1285,164 @@ export default function CalendarPage() {
       />
 
       <Modal
+        visible={isCycleHistoryVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsCycleHistoryVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable
+            accessibilityLabel="Fechar histórico menstrual"
+            style={styles.modalOverlay}
+            onPress={() => setIsCycleHistoryVisible(false)}
+          />
+          <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setIsCycleHistoryVisible(false)}
+            style={styles.historyModal}
+          >
+            <View style={styles.historyModalHeader}>
+              <View style={styles.historyModalHeading}>
+                <Text style={styles.historyModalTitle}>Histórico menstrual</Text>
+                <Text style={styles.historyModalSubtitle}>
+                  {records.length} {records.length === 1 ? "registro" : "registros"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Fechar histórico menstrual"
+                accessibilityRole="button"
+                style={styles.modalCloseButton}
+                onPress={() => setIsCycleHistoryVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#4b5563" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={records}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.historyModalList}
+              style={styles.historyModalListView}
+              renderItem={({ item }) => {
+                const duration = daysBetween(item.startDate, item.endDate) + 1;
+
+                return (
+                  <View style={styles.historyCard}>
+                    <View style={styles.historyCardIcon}>
+                      <Ionicons name="water" size={21} color="#e11d48" />
+                    </View>
+                    <View style={styles.historyCardContent}>
+                      <Text style={styles.historyCardTitle}>
+                        {formatLongDate(item.startDate)}
+                      </Text>
+                      <Text style={styles.historyCardRange}>
+                        {formatShortDate(item.startDate)} a{" "}
+                        {formatShortDate(item.endDate)}
+                      </Text>
+                      <View style={styles.durationBadge}>
+                        <Text style={styles.durationBadgeText}>
+                          {duration} {duration === 1 ? "dia" : "dias"}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      accessibilityLabel={`Excluir período iniciado em ${formatLongDate(
+                        item.startDate
+                      )}`}
+                      accessibilityRole="button"
+                      style={styles.deleteButton}
+                      onPress={() => {
+                        setIsCycleHistoryVisible(false);
+                        setDeleteError(null);
+                        setTimeout(() => setRecordToDelete(item), 180);
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={19} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isNotesHistoryVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsNotesHistoryVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable
+            accessibilityLabel="Fechar histórico de anotações"
+            style={styles.modalOverlay}
+            onPress={() => setIsNotesHistoryVisible(false)}
+          />
+          <View
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setIsNotesHistoryVisible(false)}
+            style={styles.historyModal}
+          >
+            <View style={styles.historyModalHeader}>
+              <View style={styles.historyModalHeading}>
+                <Text style={styles.historyModalTitle}>Todas as anotações</Text>
+                <Text style={styles.historyModalSubtitle}>
+                  {notes.length} {notes.length === 1 ? "anotação" : "anotações"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Fechar histórico de anotações"
+                accessibilityRole="button"
+                style={styles.modalCloseButton}
+                onPress={() => setIsNotesHistoryVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#4b5563" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={notes}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.historyModalList}
+              style={styles.historyModalListView}
+              renderItem={({ item }) => (
+                <View style={styles.noteCard}>
+                  <View style={styles.noteEmojiBox}>
+                    <Text style={styles.noteEmoji}>{item.emoji || "📝"}</Text>
+                  </View>
+                  <View style={styles.noteContent}>
+                    <Text style={styles.noteDate}>{formatNoteDate(item.date)}</Text>
+                    <Text style={styles.noteText}>{item.note}</Text>
+                  </View>
+                  <View style={styles.noteActions}>
+                    <TouchableOpacity
+                      accessibilityLabel={`Editar anotação de ${formatNoteDate(item.date)}`}
+                      accessibilityRole="button"
+                      style={styles.noteEditButton}
+                      onPress={() => openNoteEditor(item)}
+                    >
+                      <Ionicons name="pencil-outline" size={18} color="#7e22ce" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel={`Excluir anotação de ${formatNoteDate(item.date)}`}
+                      accessibilityRole="button"
+                      style={styles.noteDeleteButton}
+                      onPress={() =>
+                        setNotes((current) =>
+                          current.filter((note) => note.id !== item.id)
+                        )
+                      }
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={isNoteModalVisible}
         transparent
         animationType="slide"
@@ -1189,12 +1457,18 @@ export default function CalendarPage() {
             style={styles.modalOverlay}
             onPress={() => setIsNoteModalVisible(false)}
           />
-          <View style={styles.noteModal} accessibilityViewIsModal>
+          <View
+            style={styles.noteModal}
+            accessibilityViewIsModal
+            onAccessibilityEscape={() => setIsNoteModalVisible(false)}
+          >
             <View style={styles.noteModalHeader}>
               <View>
-                <Text style={styles.noteModalTitle}>Nova anotação</Text>
+                <Text style={styles.noteModalTitle}>
+                  {editingNoteId ? "Editar anotação" : "Nova anotação"}
+                </Text>
                 <Text style={styles.noteModalDate}>
-                  {formatLongDate(selectedDate)}
+                  {formatNoteDate(noteDate)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1204,17 +1478,46 @@ export default function CalendarPage() {
                 <Ionicons name="close" size={25} color="#4b5563" />
               </TouchableOpacity>
             </View>
-            <TextInput
-              autoFocus
-              maxLength={600}
-              multiline
-              placeholder="Escreva como foi seu dia..."
-              placeholderTextColor="#9ca3af"
-              style={styles.noteInput}
-              textAlignVertical="top"
-              value={noteText}
-              onChangeText={setNoteText}
-            />
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.emojiPickerLabel}>Escolha um ícone</Text>
+              <View accessibilityRole="radiogroup" style={styles.emojiPicker}>
+                {NOTE_EMOJIS.map((option) => {
+                  const selected = noteEmoji === option.emoji;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.emoji}
+                      accessibilityLabel={option.label}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      activeOpacity={0.75}
+                      style={[
+                        styles.emojiOption,
+                        selected && styles.emojiOptionSelected,
+                      ]}
+                      onPress={() => setNoteEmoji(option.emoji)}
+                    >
+                      <Text style={styles.emojiOptionText}>{option.emoji}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.emojiPickerLabel}>Anotação</Text>
+              <TextInput
+                autoFocus
+                maxLength={600}
+                multiline
+                placeholder="Escreva como foi seu dia..."
+                placeholderTextColor="#9ca3af"
+                style={styles.noteInput}
+                textAlignVertical="top"
+                value={noteText}
+                onChangeText={setNoteText}
+              />
+            </ScrollView>
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityState={{ disabled: !noteText.trim() }}
@@ -1226,7 +1529,9 @@ export default function CalendarPage() {
               ]}
               onPress={saveNote}
             >
-              <Text style={styles.noteSaveButtonText}>Salvar anotação</Text>
+              <Text style={styles.noteSaveButtonText}>
+                {editingNoteId ? "Salvar alterações" : "Salvar anotação"}
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1990,6 +2295,68 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 16,
   },
+  stackContainer: {
+    paddingBottom: 13,
+    position: "relative",
+  },
+  stackLayer: {
+    backgroundColor: "#fff1f2",
+    borderColor: "#fecdd3",
+    borderRadius: 24,
+    borderWidth: 1,
+    position: "absolute",
+  },
+  stackLayerMiddle: {
+    bottom: 5,
+    left: 8,
+    right: 8,
+    top: 7,
+    zIndex: 2,
+  },
+  stackLayerBack: {
+    bottom: 0,
+    left: 16,
+    right: 16,
+    top: 14,
+    zIndex: 1,
+  },
+  noteStackLayerMiddle: {
+    backgroundColor: "#fdf2f8",
+    borderColor: "#fbcfe8",
+    bottom: 5,
+    left: 8,
+    right: 8,
+    top: 7,
+    zIndex: 2,
+  },
+  noteStackLayerBack: {
+    backgroundColor: "#fce7f3",
+    borderColor: "#f9a8d4",
+    bottom: 0,
+    left: 16,
+    right: 16,
+    top: 14,
+    zIndex: 1,
+  },
+  stackFrontCard: {
+    marginBottom: 0,
+    marginTop: 0,
+    zIndex: 3,
+  },
+  seeOthersButton: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 4,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 14,
+  },
+  seeOthersButtonText: {
+    color: "#be185d",
+    fontSize: 13,
+    fontWeight: "800",
+  },
   historyCardIcon: {
     alignItems: "center",
     backgroundColor: "#fff1f2",
@@ -2081,7 +2448,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 9,
     justifyContent: "center",
-    marginTop: 16,
     minHeight: 52,
     paddingHorizontal: 16,
   },
@@ -2123,17 +2489,45 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   noteText: { color: "#374151", fontSize: 14, lineHeight: 20 },
+  noteActions: {
+    gap: 2,
+  },
+  noteEditButton: {
+    alignItems: "center",
+    backgroundColor: "#faf5ff",
+    borderRadius: 12,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
   noteDeleteButton: {
     alignItems: "center",
-    borderRadius: 11,
-    height: 38,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
+    height: 44,
     justifyContent: "center",
-    width: 38,
+    width: 44,
+  },
+  emptyNoteCard: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#fbcfe8",
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 18,
+  },
+  emptyNoteText: {
+    color: "#6b7280",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
   },
   noteModal: {
     backgroundColor: "#ffffff",
     borderRadius: 24,
     elevation: 10,
+    maxHeight: "90%",
     maxWidth: 520,
     padding: 22,
     width: "100%",
@@ -2146,6 +2540,34 @@ const styles = StyleSheet.create({
   },
   noteModalTitle: { color: "#111827", fontSize: 20, fontWeight: "800" },
   noteModalDate: { color: "#6b7280", fontSize: 12, marginTop: 4 },
+  emojiPickerLabel: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  emojiPicker: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 18,
+  },
+  emojiOption: {
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+    borderColor: "#e5e7eb",
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  emojiOptionSelected: {
+    backgroundColor: "#fce7f3",
+    borderColor: "#be185d",
+    borderWidth: 2,
+  },
+  emojiOptionText: { fontSize: 23 },
   noteInput: {
     backgroundColor: "#f9fafb",
     borderColor: "#e5e7eb",
@@ -2179,6 +2601,43 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
+  historyModal: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 26,
+    elevation: 10,
+    maxHeight: "84%",
+    maxWidth: 620,
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 26,
+    width: "100%",
+  },
+  historyModalHeader: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderBottomColor: "#e5e7eb",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 18,
+  },
+  historyModalHeading: { flex: 1 },
+  historyModalTitle: { color: "#111827", fontSize: 20, fontWeight: "800" },
+  historyModalSubtitle: { color: "#6b7280", fontSize: 12, marginTop: 3 },
+  modalCloseButton: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  historyModalList: {
+    padding: 14,
+    paddingBottom: 24,
+  },
+  historyModalListView: { flexShrink: 1 },
   deleteModal: {
     alignItems: "center",
     backgroundColor: "#ffffff",
