@@ -34,6 +34,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/conteudos', [ContentController::class, 'store'])
         ->name('conteudos.store');
 
+    Route::post('/conteudos/upload-imagem', [ContentController::class, 'uploadImage'])
+        ->name('conteudos.upload-imagem');
+
     Route::delete('/conteudos/{content}', [ContentController::class, 'destroy'])
         ->name('contents.destroy');
 

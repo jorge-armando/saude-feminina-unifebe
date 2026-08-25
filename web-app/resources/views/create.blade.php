@@ -110,10 +110,33 @@
                     hideModeSwitch: false,
 
                     toolbarItems: [
-                        ['heading', 'bold', 'italic'],
-                        ['ul', 'ol'],
-                        ['link', 'quote']
-                    ]
+                        ['heading', 'bold', 'italic', 'strike'],
+                        ['hr', 'quote'],
+                        ['ul', 'ol', 'task', 'indent', 'outdent'],
+                        ['table', 'image', 'link'],
+                        ['code', 'codeblock'],
+                        ['scrollSync']
+                    ],
+
+                    hooks: {
+                        addImageBlobHook(blob, callback) {
+
+                            const formData = new FormData();
+                            formData.append('image', blob);
+
+                            fetch('{{ route("conteudos.upload-imagem") }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                },
+                                body: formData,
+                            })
+                                .then((response) => response.json())
+                                .then((data) => callback(data.url, blob.name || 'imagem'))
+                                .catch(() => alert('Não foi possível enviar a imagem.'));
+
+                        }
+                    }
 
                 });
                 setTimeout(function () {

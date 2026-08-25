@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Content;
 use App\Http\Resources\ContentResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ContentController extends Controller
 {
@@ -88,6 +89,19 @@ public function update(Request $request, Content $content)
         return redirect()
             ->route('painel')
             ->with('success', 'Conteúdo criado com sucesso.');
+    }
+
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|max:5120',
+        ]);
+
+        $path = $request->file('image')->store('content-images', 'public');
+
+        return response()->json([
+            'url' => Storage::url($path),
+        ]);
     }
 
     public function destroy(Content $content)
