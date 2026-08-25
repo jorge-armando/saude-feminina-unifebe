@@ -1,4 +1,6 @@
+import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
+import { resolveContentAssetUrl } from "../../services/api";
 
 interface SafeMarkdownProps {
   children: string;
@@ -28,6 +30,30 @@ export function SafeMarkdown({ children }: SafeMarkdownProps) {
         const line = rawLine.trim();
         if (!line) {
           return <View key={`space-${index}`} style={styles.space} />;
+        }
+
+        const image = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(line);
+        if (image) {
+          const resolvedUrl = resolveContentAssetUrl(image[2]);
+
+          if (!resolvedUrl) {
+            return image[1] ? (
+              <Text key={`image-alt-${index}`} style={styles.paragraphBlock}>
+                {image[1]}
+              </Text>
+            ) : null;
+          }
+
+          return (
+            <Image
+              key={`image-${index}`}
+              source={{ uri: resolvedUrl }}
+              style={styles.image}
+              contentFit="cover"
+              transition={200}
+              accessibilityLabel={image[1] || "Imagem do artigo"}
+            />
+          );
         }
 
         const heading = /^(#{1,4})\s+(.+)$/.exec(line);
@@ -93,6 +119,13 @@ export function SafeMarkdown({ children }: SafeMarkdownProps) {
 
 const styles = StyleSheet.create({
   space: { height: 8 },
+  image: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    marginVertical: 10,
+    backgroundColor: "#f3f4f6",
+  },
   headingLarge: {
     color: "#111827",
     fontSize: 22,

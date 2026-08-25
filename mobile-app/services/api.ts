@@ -1,5 +1,28 @@
 const API_BASE_URL = "https://saudefeminina.tearsense.com.br/api";
+const SITE_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 const REQUEST_TIMEOUT_MS = 12_000;
+
+export function resolveContentAssetUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const resolved = trimmed.startsWith("/")
+      ? `${SITE_ORIGIN}${trimmed}`
+      : trimmed;
+
+    const parsed = new URL(resolved);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+
+    return resolved;
+  } catch {
+    return null;
+  }
+}
 
 export interface Content {
   id: number;
