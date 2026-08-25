@@ -1166,10 +1166,15 @@ export default function CalendarPage() {
             style={styles.addNoteButton}
             onPress={openNewNote}
           >
-            <Ionicons name="add-circle" size={23} color="#ffffff" />
-            <Text style={styles.addNoteButtonText}>
-              Anotar em {formatShortDate(selectedDate)}
-            </Text>
+            <LinearGradient
+              colors={["#e11d48", "#be185d"]}
+              style={styles.addNoteGradient}
+            >
+              <Ionicons name="add-circle" size={25} color="#ffffff" />
+              <Text style={styles.addNoteButtonText}>
+                Anotar em {formatShortDate(selectedDate)}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           {notesError ? (
@@ -1675,14 +1680,12 @@ const styles = StyleSheet.create({
   },
   tutorialTarget: {
     backgroundColor: "rgba(255,255,255,0.42)",
-    borderColor: "#7e22ce",
     borderRadius: 34,
-    borderWidth: 3,
-    elevation: 14,
+    elevation: 10,
     shadowColor: "#7e22ce",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
   },
   messageSpacing: {
     marginBottom: 12,
@@ -2442,9 +2445,14 @@ const styles = StyleSheet.create({
     width: 42,
   },
   addNoteButton: {
-    alignItems: "center",
-    backgroundColor: "#be185d",
     borderRadius: 17,
+    marginBottom: 14,
+    minHeight: 52,
+    overflow: "hidden",
+  },
+  addNoteGradient: {
+    alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     gap: 9,
     justifyContent: "center",
@@ -2453,7 +2461,7 @@ const styles = StyleSheet.create({
   },
   addNoteButtonText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: "800",
   },
   notesError: {
@@ -2514,7 +2522,6 @@ const styles = StyleSheet.create({
     borderColor: "#fbcfe8",
     borderRadius: 18,
     borderWidth: 1,
-    marginTop: 12,
     padding: 18,
   },
   emptyNoteText: {
