@@ -614,6 +614,7 @@ export default function CalendarPage() {
         keyboardShouldPersistTaps="handled"
       >
         <View
+          collapsable={false}
           ref={(node) => {
             tutorialTargetRefs.current.intro = node;
           }}
@@ -677,6 +678,7 @@ export default function CalendarPage() {
         )}
 
         <View
+          collapsable={false}
           ref={(node) => {
             tutorialTargetRefs.current.prediction = node;
           }}
@@ -774,6 +776,7 @@ export default function CalendarPage() {
         >
           <View style={styles.calendarCard}>
             <View
+              collapsable={false}
               ref={(node) => {
                 tutorialTargetRefs.current.calendar = node;
               }}
@@ -980,6 +983,7 @@ export default function CalendarPage() {
         </View>
 
         <View
+          collapsable={false}
           ref={(node) => {
             tutorialTargetRefs.current.registration = node;
           }}
@@ -1094,6 +1098,7 @@ export default function CalendarPage() {
           onLayout={(event) => handleTutorialTargetLayout("history", event)}
         >
           <View
+            collapsable={false}
             ref={(node) => {
               tutorialTargetRefs.current.history = node;
             }}
@@ -1307,6 +1312,7 @@ export default function CalendarPage() {
         </View>
 
         <View
+          collapsable={false}
           ref={(node) => {
             tutorialTargetRefs.current.privacy = node;
           }}

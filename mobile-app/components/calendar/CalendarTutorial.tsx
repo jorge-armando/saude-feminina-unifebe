@@ -116,7 +116,7 @@ export function CalendarTutorial({
   } = useWindowDimensions();
   const bodyScrollRef = useRef<ScrollView>(null);
   const announcementRef = useRef<View>(null);
-  const layerRef = useRef<View>(null);
+  const frameOriginRef = useRef<View>(null);
   const glowProgress = useRef(new Animated.Value(0)).current;
   const [localTargetFrame, setLocalTargetFrame] =
     useState<CalendarTutorialTargetFrame | null>(null);
@@ -185,14 +185,14 @@ export function CalendarTutorial({
 
     let cancelled = false;
     const animationFrame = requestAnimationFrame(() => {
-      layerRef.current?.measureInWindow((layerX, layerY) => {
+      frameOriginRef.current?.measureInWindow((originX, originY) => {
         if (cancelled) return;
 
         setLocalTargetFrame({
           height: targetFrame.height,
           width: targetFrame.width,
-          x: targetFrame.x - layerX,
-          y: targetFrame.y - layerY,
+          x: targetFrame.x - originX,
+          y: targetFrame.y - originY,
         });
       });
     });
@@ -243,12 +243,17 @@ export function CalendarTutorial({
       onRequestClose={onClose}
     >
       <View
-        ref={layerRef}
         style={[
           styles.layer,
           { paddingBottom: Math.max(insets.bottom, 16) },
         ]}
       >
+        <View
+          ref={frameOriginRef}
+          collapsable={false}
+          pointerEvents="none"
+          style={styles.frameCoordinateOrigin}
+        />
         <Pressable accessible={false} style={styles.backdrop} />
 
         {visibleTargetFrame ? (
@@ -462,6 +467,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: 0,
+  },
+  frameCoordinateOrigin: {
+    height: 1,
+    left: 0,
+    opacity: 0,
+    position: "absolute",
+    top: 0,
+    width: 1,
   },
   targetFrame: {
     backgroundColor: "transparent",
