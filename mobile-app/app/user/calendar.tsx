@@ -273,12 +273,13 @@ export default function CalendarPage() {
     isDateInRange(selectedDate, record.startDate, record.endDate)
   );
   const selectedDateIsPredicted = Boolean(
-    cycleTracking.prediction?.predictionAvailable
-      ? isDateInRange(
-          selectedDate,
-          cycleTracking.prediction.periodStartRange.startDate,
-          cycleTracking.prediction.periodEndRange.endDate
-        )
+    cycleTracking.prediction
+      ? cycleTracking.prediction.predictionAvailable &&
+          isDateInRange(
+            selectedDate,
+            cycleTracking.prediction.periodStartRange.startDate,
+            cycleTracking.prediction.periodEndRange.endDate
+          )
       : prediction &&
           isDateInRange(selectedDate, prediction.startDate, prediction.endDate)
   );
@@ -978,12 +979,13 @@ export default function CalendarPage() {
                 const advancedPhase = cycleTracking.getPhaseForDate(date);
                 const advancedEntry = cycleTracking.getEntryForDate(date);
                 const predicted = Boolean(
-                  cycleTracking.prediction?.predictionAvailable
-                    ? isDateInRange(
-                        date,
-                        cycleTracking.prediction.periodStartRange.startDate,
-                        cycleTracking.prediction.periodEndRange.endDate
-                      )
+                  cycleTracking.prediction
+                    ? cycleTracking.prediction.predictionAvailable &&
+                        isDateInRange(
+                          date,
+                          cycleTracking.prediction.periodStartRange.startDate,
+                          cycleTracking.prediction.periodEndRange.endDate
+                        )
                     : prediction &&
                         isDateInRange(date, prediction.startDate, prediction.endDate)
                 );

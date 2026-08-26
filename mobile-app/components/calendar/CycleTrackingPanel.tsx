@@ -407,9 +407,14 @@ export function CycleTrackingPanel({
     count += Object.keys(entry.symptoms).length;
     count += entry.moods.length;
     if (entry.energy || entry.sleep || entry.libido) count += 1;
-    if (Object.keys(entry.fertility).length > 0) count += 1;
+    if (Object.values(entry.fertility).some((value) => value !== undefined))
+      count += 1;
     if (entry.sexualActivityStatus !== "not_reported") count += 1;
-    if (entry.medications.length > 0 || Object.keys(entry.factors).length > 0) count += 1;
+    if (
+      entry.medications.length > 0 ||
+      Object.values(entry.factors).some((value) => value !== undefined)
+    )
+      count += 1;
     return count === 0
       ? "Nenhum detalhe registrado nesta data"
       : `${count} ${count === 1 ? "grupo registrado" : "grupos registrados"} nesta data`;

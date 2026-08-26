@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useNavigationState } from '../../hooks/useNavigationState';
 import { useMenstrualCycles } from '../../hooks/useMenstrualCycles';
+import { useCycleTracking } from '../../services/useCycleTracking';
 import {
   compareLocalDates,
   formatLongDate,
@@ -56,16 +57,18 @@ export default function ProfilePage() {
   } = useReminders();
   const {
     records: cycleRecords,
-    prediction: cyclePrediction,
     isLoading: isCycleLoading,
     error: cycleError,
   } = useMenstrualCycles();
+  const { prediction: cyclePrediction } = useCycleTracking(cycleRecords);
 
   useNavigationState('/user/profile');
 
+  const activeCyclePrediction =
+    cyclePrediction?.predictionAvailable ? cyclePrediction : null;
   const cyclePredictionIsOverdue = Boolean(
-    cyclePrediction &&
-      compareLocalDates(toLocalDate(new Date()), cyclePrediction.endDate) > 0
+    activeCyclePrediction &&
+      compareLocalDates(toLocalDate(new Date()), activeCyclePrediction.endDate) > 0
   );
 
   useEffect(() => {
@@ -96,8 +99,10 @@ export default function ProfilePage() {
         ? 'Carregando...'
         : cycleError
           ? 'Indisponível'
+        : activeCyclePrediction
+          ? formatLongDate(activeCyclePrediction.startDate)
         : cyclePrediction
-          ? formatLongDate(cyclePrediction.startDate)
+          ? 'Previsão pausada'
           : 'Sem previsão',
       icon: '🌸',
     },

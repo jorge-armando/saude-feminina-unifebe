@@ -17,6 +17,7 @@ import { useContents } from "../../hooks/useContents";
 import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
 import { useNavigationState } from "../../hooks/useNavigationState";
 import { useReminders } from "../../hooks/useReminders";
+import { useCycleTracking } from "../../services/useCycleTracking";
 import {
   AppNotificationItem,
   buildAppNotifications,
@@ -32,11 +33,12 @@ export default function NotificationsScreen() {
     refresh: refreshReminders,
   } = useReminders();
   const {
-    prediction,
+    records: cycleRecords,
     isLoading: cyclesLoading,
     error: cyclesError,
     refresh: refreshCycles,
   } = useMenstrualCycles();
+  const { prediction } = useCycleTracking(cycleRecords);
   const {
     data: contentsData,
     isLoading: contentsLoading,

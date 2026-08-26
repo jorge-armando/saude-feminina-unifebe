@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { useNavigationState } from "../../hooks/useNavigationState";
 import { useMenstrualCycles } from "../../hooks/useMenstrualCycles";
+import { useCycleTracking } from "../../services/useCycleTracking";
 import {
   calculateCurrentCycleDay,
   compareLocalDates,
@@ -63,10 +64,10 @@ export default function HomePage() {
   const [isRefreshingDailyMessage, setIsRefreshingDailyMessage] = useState(false);
   const {
     records: cycleRecords,
-    prediction: cyclePrediction,
     isLoading: isCycleLoading,
     error: cycleError,
   } = useMenstrualCycles();
+  const { prediction: cyclePrediction } = useCycleTracking(cycleRecords);
   const {
     reminders: reminderRecords,
     preferences,
@@ -238,6 +239,9 @@ export default function HomePage() {
   };
 
   const today = toLocalDate(new Date());
+  const activeCyclePrediction = cyclePrediction?.predictionAvailable
+    ? cyclePrediction
+    : null;
   const cycleLength = cyclePrediction?.averageCycleLength ?? 28;
   const currentCycleDay = cyclePrediction
     ? calculateCurrentCycleDay(cycleRecords, cycleLength, today)
@@ -245,16 +249,20 @@ export default function HomePage() {
   const cycleProgress = currentCycleDay
     ? Math.min(100, (currentCycleDay / cycleLength) * 100)
     : 0;
-  const daysUntilNextCycle = cyclePrediction
-    ? daysBetween(today, cyclePrediction.startDate)
+  const daysUntilNextCycle = activeCyclePrediction
+    ? daysBetween(today, activeCyclePrediction.startDate)
     : null;
   const hasCycleData = Boolean(
     !cycleError && cyclePrediction && currentCycleDay
   );
   const predictionIsOverdue = Boolean(
-    cyclePrediction && compareLocalDates(today, cyclePrediction.endDate) > 0
+    activeCyclePrediction &&
+      compareLocalDates(today, activeCyclePrediction.endDate) > 0
   );
   const hasCurrentCycleEstimate = hasCycleData && !predictionIsOverdue;
+  const predictionIsPaused = Boolean(
+    cyclePrediction && !cyclePrediction.predictionAvailable
+  );
   const cycleInfo = predictionIsOverdue && !cycleError
     ? {
         phase: "Atualize seu calendário",
@@ -292,24 +300,28 @@ export default function HomePage() {
       ? "Carregando registros"
       : predictionIsOverdue
         ? "Previsão não confirmada"
-        : hasCycleData
-          ? "Próxima previsão"
-          : "Registrar primeiro período";
+        : predictionIsPaused
+          ? "Previsão pausada"
+          : hasCycleData
+            ? "Próxima previsão"
+            : "Registrar primeiro período";
   const nextPeriodValue = cycleError
     ? "Verificar"
     : isCycleLoading
       ? "..."
       : predictionIsOverdue
         ? "Atualizar"
-        : daysUntilNextCycle === null
-          ? "Começar"
-          : daysUntilNextCycle === 0
-            ? "Hoje"
-            : daysUntilNextCycle < 0
-              ? "Em curso"
-              : `${daysUntilNextCycle} ${
-                  daysUntilNextCycle === 1 ? "dia" : "dias"
-                }`;
+        : predictionIsPaused
+          ? "Ver detalhes"
+          : daysUntilNextCycle === null
+            ? "Começar"
+            : daysUntilNextCycle === 0
+              ? "Hoje"
+              : daysUntilNextCycle < 0
+                ? "Em curso"
+                : `${daysUntilNextCycle} ${
+                    daysUntilNextCycle === 1 ? "dia" : "dias"
+                  }`;
 
   return (
     <LinearGradient
@@ -430,10 +442,21 @@ export default function HomePage() {
               </View>
               <View style={styles.nextPeriodCopy}>
                 <Text style={styles.nextPeriodText}>{nextPeriodLabel}</Text>
-                {hasCycleData && cyclePrediction && (
-                  <Text style={styles.nextPeriodDate}>
-                    {formatShortDate(cyclePrediction.startDate)}
-                  </Text>
+                {hasCycleData && activeCyclePrediction && (
+                  <>
+                    <Text style={styles.nextPeriodDate}>
+                      {formatShortDate(activeCyclePrediction.startDate)}
+                    </Text>
+                    <Text style={styles.nextPeriodRange}>
+                      Intervalo possível: {formatShortDate(
+                        activeCyclePrediction.periodStartRange.startDate,
+                      )}{" "}
+                      a{" "}
+                      {formatShortDate(
+                        activeCyclePrediction.periodStartRange.endDate,
+                      )}
+                    </Text>
+                  </>
                 )}
               </View>
             </View>
@@ -973,6 +996,13 @@ const styles = StyleSheet.create({
     color: "#fdf2f8",
     fontSize: 11,
     marginTop: 3,
+  },
+
+  nextPeriodRange: {
+    color: "#fdf2f8",
+    fontSize: 10,
+    opacity: 0.8,
+    marginTop: 1,
   },
 
   nextPeriodDays: {

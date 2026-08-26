@@ -26,9 +26,14 @@ export interface AppNotificationItem {
   sortTimestamp: number;
 }
 
+type PredictionForNotifications = CyclePrediction & {
+  /** Presente apenas nas previsões do motor V2; ausente nas do motor legado. */
+  predictionAvailable?: boolean;
+};
+
 interface BuildAppNotificationsInput {
   reminders: Reminder[];
-  prediction: CyclePrediction | null;
+  prediction: PredictionForNotifications | null;
   contents: Content[];
   preferences: NotificationPreferences;
   now?: Date;
@@ -80,10 +85,10 @@ function buildReminderItems(reminders: Reminder[], now: Date) {
 }
 
 function buildCycleItem(
-  prediction: CyclePrediction | null,
+  prediction: PredictionForNotifications | null,
   now: Date,
 ): AppNotificationItem[] {
-  if (!prediction) {
+  if (!prediction || prediction.predictionAvailable === false) {
     return [];
   }
 
