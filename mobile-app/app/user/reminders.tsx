@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -242,7 +243,19 @@ export default function RemindersPage() {
         {notificationMessage ? (
           <View style={styles.notice}>
             <BellOff color="#9f1239" size={20} />
-            <Text style={styles.noticeText}>{notificationMessage}</Text>
+            <View style={styles.noticeCopy}>
+              <Text style={styles.noticeText}>{notificationMessage}</Text>
+              {notificationStatus === "permission-denied" ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir ajustes de notificação do aparelho"
+                  style={styles.noticeAction}
+                  onPress={() => void Linking.openSettings()}
+                >
+                  <Text style={styles.noticeActionText}>Abrir ajustes</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
@@ -585,7 +598,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     padding: 13,
   },
-  noticeText: { color: "#881337", flex: 1, fontSize: 13, lineHeight: 19, marginLeft: 10 },
+  noticeCopy: { flex: 1, marginLeft: 10 },
+  noticeText: { color: "#881337", fontSize: 13, lineHeight: 19 },
+  noticeAction: { marginTop: 8 },
+  noticeActionText: { color: "#be123c", fontSize: 13, fontWeight: "800" },
   errorBanner: {
     backgroundColor: "#fef2f2",
     borderColor: "#fecaca",

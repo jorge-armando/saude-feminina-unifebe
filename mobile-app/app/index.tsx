@@ -68,7 +68,7 @@ export default function Index() {
 
     try {
       await createLocalUserProfile(name);
-      router.replace("/user/home");
+      router.replace("/notification-permission");
     } catch (submitError) {
       setError(
         submitError instanceof Error

@@ -758,7 +758,7 @@ function permissionAllowsNotifications(
   );
 }
 
-async function ensureNotificationSchedulingAvailable(): Promise<ReminderNotificationStatus> {
+export async function ensureNotificationSchedulingAvailable(): Promise<ReminderNotificationStatus> {
   if (!isNativeNotificationEnvironment()) {
     lastReminderNotificationStatus = "unsupported";
     return lastReminderNotificationStatus;

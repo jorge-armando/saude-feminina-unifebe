@@ -745,6 +745,7 @@ const styles = StyleSheet.create({
     borderColor: "#fff",
 
     zIndex: 10,
+    elevation: 9,
   },
 
   greeting: {
