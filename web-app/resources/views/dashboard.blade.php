@@ -95,7 +95,7 @@
                                             <img src="{{ $imageUrl }}" alt="" class="content-thumbnail">
                                         @endif
                                         @if ($content->youtube_url)
-                                            <span class="media-badge">YouTube</span>
+                                            <span class="youtube-icon" title="YouTube" aria-label="YouTube" role="img"></span>
                                         @endif
                                         @if (!$imageUrl && !$content->youtube_url)
                                             <span class="muted-text">Sem mídia</span>
@@ -186,7 +186,7 @@
                                     <span class="tag">{{ $tag }}</span>
                                 @endforeach
                                 @if ($content->youtube_url)
-                                    <span class="media-badge">YouTube</span>
+                                    <span class="youtube-icon" title="YouTube" aria-label="YouTube" role="img"></span>
                                 @endif
                             </div>
 

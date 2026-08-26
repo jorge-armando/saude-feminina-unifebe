@@ -380,6 +380,11 @@ body {
     overflow-wrap: anywhere;
 }
 
+.desktop-table .column-date,
+.desktop-table td:nth-child(6) {
+    white-space: nowrap;
+}
+
 .desktop-table tr[draggable="true"] {
     transition: opacity 0.15s, background 0.15s;
 }
@@ -441,6 +446,28 @@ body {
 .media-badge {
     color: #991b1b;
     background: #fee2e2;
+}
+
+.youtube-icon {
+    display: inline-flex;
+    position: relative;
+    width: 32px;
+    height: 22px;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #ff0000;
+}
+
+.youtube-icon::after {
+    content: "";
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid #fff;
+    margin-left: 2px;
 }
 
 .featured-badge.is-hidden {

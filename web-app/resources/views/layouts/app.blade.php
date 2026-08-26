@@ -14,7 +14,7 @@
 
     @stack('styles')
 
-    <link rel="icon" type="image/png"
+    <link rel="icon" type="image/png" sizes="any"
         href="{{ asset('images/logo.png') }}?v={{ filemtime(public_path('images/logo.png')) }}">
 
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@200;300;400;500;600;700;800&display=swap"
